@@ -673,7 +673,7 @@
         💬 チャット
         <span class="tab-unread-dot" id="tabUnreadDot"></span>
       </div>
-      <div class="tab-item" onclick="switchTab('call')">📻 クリア無線</div>
+      <div class="tab-item" onclick="switchTab('call')">📻 トランシーバー</div>
       <div class="tab-item" onclick="switchTab('settings')">⚙️ 設定</div>
     </div>
 
@@ -714,16 +714,16 @@
 
     <div id="viewCall" class="view-content">
       <div class="call-pane">
-        <div class="setting-title" style="font-size: 18px;">📻 道下クリア無線網 (ノイズ抑制)</div>
+        <div class="setting-title" style="font-size: 18px;">📻 道下トランシーバー網</div>
         <div id="callStatusText" style="font-size: 13px; font-weight: 800; color: #64748b;">待機中...</div>
-        <audio id="remoteAudio" autoplay style="display:none;"></audio>
+        <audio id="remoteAudio" style="display:none;"></audio>
         
         <div style="display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 280px; align-items: center; margin-top: 20px;">
-          <button id="streamBtn" class="btn-clean" onclick="toggleContinuousStream()" style="background: #10b981; width: 100%; height: 60px; font-size: 15px; border-radius: 30px;">📻 無線ストリーム開始</button>
+          <button id="recordBtn" class="btn-clean" onclick="toggleVoiceRecord()" style="background: #10b981; width: 100%; height: 60px; font-size: 16px; border-radius: 30px;">🎤 録音して送信</button>
         </div>
 
         <div style="font-size: 11.5px; color: #64748b; margin-top: 15px; line-height: 1.4; text-align: center;">
-          雑音抑制機能付きで、最初の一文字目から<br>途切れずリアルタイムで送信されます。
+          学校のネットワーク制限を完全に回避するため、<br>Firebase経由で音声を一瞬で送受信します。
         </div>
       </div>
     </div>
@@ -788,7 +788,8 @@
     let impersonatedIcon = null;
 
     let mediaRecorder = null;
-    let isStreamingActive = false;
+    let audioChunks = [];
+    let isRecording = false;
 
     const firebaseConfig = {
       databaseURL: "https://michishita-typing-94d91-default-rtdb.firebaseio.com"
@@ -960,71 +961,68 @@
           audioElem.src = data.audioData;
           audioElem.play().catch(e => console.log("Auto-play blocked:", e));
           
-          document.getElementById('callStatusText').innerText = `${data.sender} から音声受信中...`;
+          document.getElementById('callStatusText').innerText = `${data.sender} から音声受信！`;
         }
       });
     }
 
-    // Start continuous streaming mode with browser noise suppression enabled
-    async function startContinuousStream() {
+    async function startVoiceRecord() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          }
-        });
-
-        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
 
         mediaRecorder.ondataavailable = (event) => {
-          if (event.data && event.data.size > 0) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              const base64Audio = reader.result;
-              const activeSender = impersonatedName || myName;
-
-              db.ref('secret_voice_chat').push({
-                sender: activeSender,
-                audioData: base64Audio,
-                timestamp: Date.now()
-              });
-            };
-            reader.readAsDataURL(event.data);
+          if (event.data.size > 0) {
+            audioChunks.push(event.data);
           }
         };
 
-        // Stream chunks every 700ms for continuous real-time transmission
-        mediaRecorder.start(700);
-        isStreamingActive = true;
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const reader = new FileReader();
+          
+          reader.onloadend = () => {
+            const base64Audio = reader.result;
+            const activeSender = impersonatedName || myName;
 
-        document.getElementById('callStatusText').innerText = "無線回線オープン (ノイズ抑制有効)";
-        document.getElementById('streamBtn').innerText = "⏹️ 無線ストリーム停止";
-        document.getElementById('streamBtn').style.background = "#ef4444";
+            db.ref('secret_voice_chat').push({
+              sender: activeSender,
+              audioData: base64Audio,
+              timestamp: Date.now()
+            });
+
+            document.getElementById('callStatusText').innerText = "音声を送信しました";
+          };
+
+          reader.readAsDataURL(audioBlob);
+        };
+
+        mediaRecorder.start();
+        isRecording = true;
+        document.getElementById('callStatusText').innerText = "録音中... (話してください)";
+        document.getElementById('recordBtn').innerText = "⏹️ 録音終了・送信";
+        document.getElementById('recordBtn').style.background = "#ef4444";
 
       } catch (err) {
-        alert("マイクの使用が許可されていないか、ブロックされています。");
+        alert("Microphone access denied.");
       }
     }
 
-    function stopContinuousStream() {
-      if (mediaRecorder && isStreamingActive) {
+    function stopVoiceRecord() {
+      if (mediaRecorder && isRecording) {
         mediaRecorder.stop();
-        mediaRecorder.stream.getTracks().forEach(track => track.stop());
-        isStreamingActive = false;
-
-        document.getElementById('callStatusText').innerText = "待機中...";
-        document.getElementById('streamBtn').innerText = "📻 無線ストリーム開始";
-        document.getElementById('streamBtn').style.background = "#10b981";
+        isRecording = false;
+        document.getElementById('recordBtn').innerText = "🎤 録音して送信";
+        document.getElementById('recordBtn').style.background = "#10b981";
       }
     }
 
-    function toggleContinuousStream() {
-      if (!isStreamingActive) {
-        startContinuousStream();
+    function toggleVoiceRecord() {
+      if (!isRecording) {
+        startVoiceRecord();
       } else {
-        stopContinuousStream();
+        stopVoiceRecord();
       }
     }
 
