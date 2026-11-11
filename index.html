@@ -1048,28 +1048,33 @@
       }
     }
 
-    function endCall(notify = true) {
+function endCall(notify = true) {
       const activeSender = impersonatedName || myName;
+
+      // 相手に通報を通知
       if (notify && callRoomRef) {
-        db.ref(`secret_calls/${callRoomRef}`).set({
-          type: 'hangup',
-          sender: activeSender
-        });
+        db.ref(`secret_calls/${callRoomRef}`).set({ type: 'hangup', sender: activeSender });
       }
 
-      if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-        localStream = null;
-      }
-      if (pc) {
-        pc.close();
-        pc = null;
-      }
+      // メディアストリームとPeerConnectionの解放
+      localStream?.getTracks().forEach(track => track.stop());
+      localStream = null;
 
+      pc?.close();
+      pc = null;
+
+      // UIの初期化
       document.getElementById('remoteAudio').srcObject = null;
       document.getElementById('callStatusText').innerText = "通話待機中...";
       document.getElementById('hangUpBtn').style.display = 'none';
-      callRoomRef = null;
+
+      // Firebase上の通話データをクリーンアップ
+      db.ref(`secret_calls/${activeSender}`).remove();
+      if (callRoomRef) {
+        db.ref(`secret_calls/${callRoomRef}`).remove();
+        callRoomRef = null;
+      }
+    }
 
       db.ref(`secret_calls/${activeSender}`).remove();
     }
