@@ -7,7 +7,6 @@
   <title>道下通信網 - 道下特設ポータル</title>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-  <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
   <style>
     * {
       box-sizing: border-box;
@@ -787,9 +786,9 @@
     let impersonatedName = null;
     let impersonatedIcon = null;
 
-    let peer = null;
-    let currentCall = null;
+    let pc = null;
     let localStream = null;
+    let callRoomRef = null;
 
     const firebaseConfig = {
       databaseURL: "https://michishita-typing-94d91-default-rtdb.firebaseio.com"
@@ -944,99 +943,149 @@
         db.ref('secret_users/' + curSender).update({ lastActive: Date.now() });
       }, 10000);
 
-      initPeerConnection(activeSender);
+      initFirebaseSignaling(activeSender);
       initUserListSync();
       initMenuGroupListSync();
       initCallUserListSync();
     }
 
-function initPeerConnection(id) {
-      if (peer) peer.destroy();
-      peer = new Peer(id, {
-        config: {
-          iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' }
-          ]
-        }
-      });
+    function initFirebaseSignaling(id) {
+      db.ref(`secret_calls/${id}`).on('value', async (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return;
 
-      peer.on('open', (assignedId) => {
-        console.log('Peer connected with ID:', assignedId);
-      });
+        if (data.type === 'offer' && !pc) {
+          if (confirm(`${data.sender} から通話の着信があります。応答しますか？`)) {
+            await setupWebRTC(data.sender, false);
+            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+            
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
 
-      peer.on('error', (err) => {
-        console.error('PeerJS Error:', err);
-        if (err.type === 'peer-unavailable') {
-          alert("エラー: 指定した相手が見つからないか、オンラインではありません。");
-        } else if (err.type === 'unavailable-id') {
-          alert("エラー: このIDはすでに他の端末で使用されています。");
-        } else {
-          alert("通信エラーが発生しました: " + err.type);
-        }
-      });
+            db.ref(`secret_calls/${data.sender}`).set({
+              type: 'answer',
+              sender: id,
+              answer: answer
+            });
 
-      peer.on('call', (incomingCall) => {
-        if (confirm(`${incomingCall.peer} から着信がありました。応答しますか？`)) {
-          navigator.mediaDevices.getUserMedia({ audio: true, video: false }).then((stream) => {
-            localStream = stream;
-            incomingCall.answer(stream);
-            currentCall = incomingCall;
-            setupCallEvents();
-            document.getElementById('callStatusText').innerText = `${incomingCall.peer} と通話中`;
+            document.getElementById('callStatusText').innerText = `${data.sender} と通話中`;
             document.getElementById('hangUpBtn').style.display = 'block';
-          }).catch(err => {
-            alert("マイクの使用許可が必要です。");
-          });
-        } else {
-          incomingCall.close();
+          } else {
+            db.ref(`secret_calls/${data.sender}`).set({ type: 'reject', sender: id });
+            db.ref(`secret_calls/${id}`).remove();
+          }
+        } else if (data.type === 'answer' && pc) {
+          await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+          document.getElementById('callStatusText').innerText = "通話中";
+          document.getElementById('hangUpBtn').style.display = 'block';
+        } else if (data.type === 'candidate' && pc) {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+          } catch (e) {
+            console.error(e);
+          }
+        } else if (data.type === 'hangup' || data.type === 'reject') {
+          endCall(false);
+          alert("通話が終了しました。");
         }
       });
     }
 
-    function setupCallEvents() {
-      currentCall.on('stream', (remoteStream) => {
-        const audio = document.getElementById('remoteAudio');
-        audio.srcObject = remoteStream;
-        audio.play().catch(e => console.log(e));
-      });
+    async function setupWebRTC(targetUser, isCaller) {
+      const configuration = {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' }
+        ]
+      };
 
-      currentCall.on('close', () => {
-        endCall();
-      });
+      pc = new RTCPeerConnection(configuration);
+      callRoomRef = targetUser;
+
+      localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+      pc.ontrack = (event) => {
+        const audio = document.getElementById('remoteAudio');
+        audio.srcObject = event.streams[0];
+        audio.play().catch(e => console.log(e));
+      };
+
+      const activeSender = impersonatedName || myName;
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          db.ref(`secret_calls/${targetUser}`).push({
+            type: 'candidate',
+            sender: activeSender,
+            candidate: event.candidate.toJSON()
+          });
+        }
+      };
     }
 
-    function startCall() {
+    async function startCall() {
       const targetId = document.getElementById('callTargetInput').value.trim();
       if (!targetId) return alert("通話相手のIDを入力してください！");
-      if (targetId === (impersonatedName || myName)) return alert("自分自身とは通話できません。");
+      const activeSender = impersonatedName || myName;
+      if (targetId === activeSender) return alert("自分自身とは通話できません。");
 
-      navigator.mediaDevices.getUserMedia({ audio: true, video: false }).then((stream) => {
-        localStream = stream;
-        const call = peer.call(targetId, stream);
-        if (!call) return alert("通話の発信に失敗しました。");
-        currentCall = call;
-        setupCallEvents();
+      try {
         document.getElementById('callStatusText').innerText = `${targetId} へ発信中...`;
-        document.getElementById('hangUpBtn').style.display = 'block';
-      }).catch(err => {
-        alert("マイクの使用許可が必要です。");
-      });
+        await setupWebRTC(targetId, true);
+
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+        db.ref(`secret_calls/${targetId}`).set({
+          type: 'offer',
+          sender: activeSender,
+          offer: offer
+        });
+      } catch (err) {
+        alert("マイクの取得または発信に失敗しました: " + err.message);
+        endCall(true);
+      }
     }
 
-    function endCall() {
-      if (currentCall) {
-        currentCall.close();
-        currentCall = null;
+function endCall(notify = true) {
+      const activeSender = impersonatedName || myName;
+      
+      // 自分と相手の双方のシグナリング領域をクリーンアップ
+      if (notify && callRoomRef) {
+        db.ref(`secret_calls/${callRoomRef}`).set({
+          type: 'hangup',
+          sender: activeSender
+        });
       }
+
       if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
         localStream = null;
       }
+      if (pc) {
+        pc.close();
+        pc = null;
+      }
+
       document.getElementById('remoteAudio').srcObject = null;
       document.getElementById('callStatusText').innerText = "通話待機中...";
       document.getElementById('hangUpBtn').style.display = 'none';
+
+      // 自分のデータも確実に削除
+      db.ref(`secret_calls/${activeSender}`).remove();
+      if (callRoomRef) {
+        db.ref(`secret_calls/${callRoomRef}`).remove();
+      }
+      callRoomRef = null;
+    }
+
+      document.getElementById('remoteAudio').srcObject = null;
+      document.getElementById('callStatusText').innerText = "通話待機中...";
+      document.getElementById('hangUpBtn').style.display = 'none';
+      callRoomRef = null;
+
+      db.ref(`secret_calls/${activeSender}`).remove();
     }
 
     function initCallUserListSync() {
@@ -1176,7 +1225,6 @@ function initPeerConnection(id) {
 
             if (window.presenceInterval) clearInterval(window.presenceInterval);
             checkBanStatusAndInit();
-            initPeerConnection(targetName);
             alert(`名前を変更しました！`);
           }
         });
