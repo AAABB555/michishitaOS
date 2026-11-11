@@ -950,14 +950,31 @@
       initCallUserListSync();
     }
 
-    function initPeerConnection(id) {
+function initPeerConnection(id) {
       if (peer) peer.destroy();
       peer = new Peer(id, {
-        config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' }
+          ]
+        }
       });
 
       peer.on('open', (assignedId) => {
         console.log('Peer connected with ID:', assignedId);
+      });
+
+      peer.on('error', (err) => {
+        console.error('PeerJS Error:', err);
+        if (err.type === 'peer-unavailable') {
+          alert("エラー: 指定した相手が見つからないか、オンラインではありません。");
+        } else if (err.type === 'unavailable-id') {
+          alert("エラー: このIDはすでに他の端末で使用されています。");
+        } else {
+          alert("通信エラーが発生しました: " + err.type);
+        }
       });
 
       peer.on('call', (incomingCall) => {
