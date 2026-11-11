@@ -716,7 +716,7 @@
       <div class="call-pane">
         <div class="setting-title" style="font-size: 18px;">📞 音声通話網</div>
         <div id="callStatusText" style="font-size: 13px; font-weight: 800; color: #64748b;">通話待機中...</div>
-        <audio id="remoteAudio" autoplay></audio>
+        <audio id="remoteAudio" autoplay controls style="width: 100%; max-width: 250px; margin: 6px 0;"></audio>
         <div id="callControlArea" style="display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 280px;">
           <input type="text" id="callTargetInput" class="modal-input" placeholder="通話相手の道下ID" style="margin-bottom: 0;">
           <button class="btn-clean" onclick="startCall()" style="background: #10b981;">📞 発信する</button>
@@ -765,7 +765,7 @@
 
         <div class="setting-card" style="border-color: #ef4444;">
           <div class="setting-title" style="color: #ef4444;">⚠️ アカウント削除</div>
-          <div style="font-size: 11.5px; color: #475569; font-weight: 700;">この操作を行うと、あなたのデータが完全に削除され、初期登録画面に戻ります。</div>
+          <div style="font-size: 11.5px; color: #475569; font-weight: 700;">この操作を行うと,あなたのデータが完全に削除され,初期登録画面に戻ります。</div>
           <button class="btn-clean" style="background: #ef4444; font-size: 11px; margin-top: 4px;" onclick="deleteMyAccount()">アカウントを完全に削除する</button>
         </div>
       </div>
@@ -1010,15 +1010,13 @@
         throw err;
       }
 
-      const remoteStream = new MediaStream();
       const audio = document.getElementById('remoteAudio');
-      audio.srcObject = remoteStream;
 
       pc.ontrack = (event) => {
-        event.streams[0].getTracks().forEach(track => {
-          remoteStream.addTrack(track);
+        audio.srcObject = event.streams[0];
+        audio.play().catch(err => {
+          console.log("自動再生が制限されました。プレイヤーの再生ボタンを押してください。");
         });
-        audio.play().catch(e => console.log("Audio play blocked:", e));
       };
 
       const activeSender = impersonatedName || myName;
