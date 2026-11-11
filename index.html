@@ -673,7 +673,7 @@
         💬 チャット
         <span class="tab-unread-dot" id="tabUnreadDot"></span>
       </div>
-      <div class="tab-item" onclick="switchTab('call')">📞 通話</div>
+      <div class="tab-item" onclick="switchTab('call')">📻 トランシーバー</div>
       <div class="tab-item" onclick="switchTab('settings')">⚙️ 設定</div>
     </div>
 
@@ -714,16 +714,17 @@
 
     <div id="viewCall" class="view-content">
       <div class="call-pane">
-        <div class="setting-title" style="font-size: 18px;">📞 音声通話網</div>
-        <div id="callStatusText" style="font-size: 13px; font-weight: 800; color: #64748b;">通話待機中...</div>
-        <audio id="remoteAudio" autoplay controls style="width: 100%; max-width: 250px; margin: 6px 0;"></audio>
-        <div id="callControlArea" style="display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 280px;">
-          <input type="text" id="callTargetInput" class="modal-input" placeholder="通話相手の道下ID" style="margin-bottom: 0;">
-          <button class="btn-clean" onclick="startCall()" style="background: #10b981;">📞 発信する</button>
-          <button class="btn-clean" id="hangUpBtn" onclick="endCall()" style="background: #ef4444; display: none;">🔴 通話を切る</button>
+        <div class="setting-title" style="font-size: 18px;">📻 道下トランシーバー網</div>
+        <div id="callStatusText" style="font-size: 13px; font-weight: 800; color: #64748b;">待機中...</div>
+        <audio id="remoteAudio" style="display:none;"></audio>
+        
+        <div style="display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 280px; align-items: center; margin-top: 20px;">
+          <button id="recordBtn" class="btn-clean" onclick="toggleVoiceRecord()" style="background: #10b981; width: 100%; height: 60px; font-size: 16px; border-radius: 30px;">🎤 録音して送信</button>
         </div>
-        <div style="font-size: 12px; font-weight: 900; color: #0284c7; margin-top: 10px;">通話可能なエージェント:</div>
-        <div id="callUserListContainer" style="width: 100%; max-width: 320px; max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;"></div>
+
+        <div style="font-size: 11.5px; color: #64748b; margin-top: 15px; line-height: 1.4; text-align: center;">
+          学校のネットワーク制限を完全に回避するため、<br>Firebase経由で音声を一瞬で送受信します。
+        </div>
       </div>
     </div>
 
@@ -786,9 +787,9 @@
     let impersonatedName = null;
     let impersonatedIcon = null;
 
-    let pc = null;
-    let localStream = null;
-    let callRoomRef = null;
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let isRecording = false;
 
     const firebaseConfig = {
       databaseURL: "https://michishita-typing-94d91-default-rtdb.firebaseio.com"
@@ -943,174 +944,86 @@
         db.ref('secret_users/' + curSender).update({ lastActive: Date.now() });
       }, 10000);
 
-      initFirebaseSignaling(activeSender);
+      initVoiceChatRelay(activeSender);
       initUserListSync();
       initMenuGroupListSync();
-      initCallUserListSync();
     }
 
-    function initFirebaseSignaling(id) {
-      db.ref(`secret_calls/${id}`).on('value', async (snapshot) => {
+    function initVoiceChatRelay(myId) {
+      const activeSender = impersonatedName || myName;
+      
+      db.ref('secret_voice_chat').limitToLast(1).on('child_added', (snapshot) => {
         const data = snapshot.val();
         if (!data) return;
 
-        if (data.type === 'offer' && !pc) {
-          if (confirm(`${data.sender} から通話の着信があります。応答しますか？`)) {
-            callRoomRef = data.sender;
-            await setupWebRTC(data.sender);
-            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-            
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
+        if (data.sender !== activeSender) {
+          const audioElem = document.getElementById('remoteAudio');
+          audioElem.src = data.audioData;
+          audioElem.play().catch(e => console.log("Auto-play blocked:", e));
+          
+          document.getElementById('callStatusText').innerText = `${data.sender} から音声受信！`;
+        }
+      });
+    }
 
-            db.ref(`secret_calls/${data.sender}`).update({
-              type: 'answer',
-              sender: id,
-              answer: answer
+    async function startVoiceRecord() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            audioChunks.push(event.data);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const reader = new FileReader();
+          
+          reader.onloadend = () => {
+            const base64Audio = reader.result;
+            const activeSender = impersonatedName || myName;
+
+            db.ref('secret_voice_chat').push({
+              sender: activeSender,
+              audioData: base64Audio,
+              timestamp: Date.now()
             });
 
-            document.getElementById('callStatusText').innerText = `${data.sender} と接続中...`;
-          } else {
-            db.ref(`secret_calls/${data.sender}`).update({ type: 'reject', sender: id });
-            db.ref(`secret_calls/${id}`).remove();
-          }
-        } else if (data.type === 'answer' && pc) {
-          await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-        } else if (data.type === 'candidate' && pc) {
-          try {
-            await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-          } catch (e) {
-            console.error(e);
-          }
-        } else if (data.type === 'hangup' || data.type === 'reject') {
-          endCall(false);
-          alert("通話が終了しました。");
-        }
-      });
-    }
+            document.getElementById('callStatusText').innerText = "音声を送信しました";
+          };
 
-    async function setupWebRTC(targetUser) {
-      const configuration = {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' }
-        ]
-      };
+          reader.readAsDataURL(audioBlob);
+        };
 
-      pc = new RTCPeerConnection(configuration);
+        mediaRecorder.start();
+        isRecording = true;
+        document.getElementById('callStatusText').innerText = "録音中... (話してください)";
+        document.getElementById('recordBtn').innerText = "⏹️ 録音終了・送信";
+        document.getElementById('recordBtn').style.background = "#ef4444";
 
-      pc.oniceconnectionstatechange = () => {
-        const state = pc.iceConnectionState;
-        document.getElementById('callStatusText').innerText = `ICE Status: ${state}`;
-        if (state === 'connected' || state === 'completed') {
-          document.getElementById('callStatusText').innerText = "通話中 (接続成功)";
-          document.getElementById('hangUpBtn').style.display = 'block';
-        } else if (state === 'failed' || state === 'disconnected') {
-          document.getElementById('callStatusText').innerText = "接続失敗 (ネットワーク制限の可能性)";
-        }
-      };
-
-      try {
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
       } catch (err) {
-        alert("マイクの使用が許可されていません。");
-        throw err;
-      }
-
-      const audio = document.getElementById('remoteAudio');
-
-      pc.ontrack = (event) => {
-        audio.srcObject = event.streams[0];
-        audio.play().catch(err => {
-          console.log("Audio play blocked:", err);
-        });
-      };
-
-      const activeSender = impersonatedName || myName;
-      pc.onicecandidate = (event) => {
-        if (event.candidate) {
-          db.ref(`secret_calls/${targetUser}`).push({
-            type: 'candidate',
-            sender: activeSender,
-            candidate: event.candidate.toJSON()
-          });
-        }
-      };
-    }
-
-    async function startCall() {
-      const targetId = document.getElementById('callTargetInput').value.trim();
-      if (!targetId) return alert("通話相手のIDを入力してください！");
-      const activeSender = impersonatedName || myName;
-      if (targetId === activeSender) return alert("自分自身とは通話できません。");
-
-      try {
-        callRoomRef = targetId;
-        document.getElementById('callStatusText').innerText = `${targetId} へ発信中...`;
-        await setupWebRTC(targetId);
-
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-
-        db.ref(`secret_calls/${targetId}`).set({
-          type: 'offer',
-          sender: activeSender,
-          offer: offer
-        });
-      } catch (err) {
-        alert("発信に失敗しました。");
-        endCall(true);
+        alert("Microphone access denied.");
       }
     }
 
-    function endCall(notify = true) {
-      const activeSender = impersonatedName || myName;
-
-      if (notify && callRoomRef) {
-        db.ref(`secret_calls/${callRoomRef}`).update({ type: 'hangup', sender: activeSender });
-      }
-
-      localStream?.getTracks().forEach(track => track.stop());
-      localStream = null;
-
-      pc?.close();
-      pc = null;
-
-      const audio = document.getElementById('remoteAudio');
-      if (audio) audio.srcObject = null;
-
-      document.getElementById('callStatusText').innerText = "通話待機中...";
-      document.getElementById('hangUpBtn').style.display = 'none';
-
-      db.ref(`secret_calls/${activeSender}`).remove();
-      if (callRoomRef) {
-        db.ref(`secret_calls/${callRoomRef}`).remove();
-        callRoomRef = null;
+    function stopVoiceRecord() {
+      if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        isRecording = false;
+        document.getElementById('recordBtn').innerText = "🎤 録音して送信";
+        document.getElementById('recordBtn').style.background = "#10b981";
       }
     }
 
-    function initCallUserListSync() {
-      const container = document.getElementById('callUserListContainer');
-      const activeSender = impersonatedName || myName;
-      db.ref('secret_users').on('value', (snap) => {
-        const users = snap.val() || {};
-        container.innerHTML = '';
-        Object.values(users).forEach(u => {
-          if (!u.name || u.name === "undefined" || u.name === activeSender) return;
-          const div = document.createElement('div');
-          div.className = 'user-item';
-          div.style.padding = '8px 12px';
-          div.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <img src="${u.icon || DEFAULT_ICON_1}" style="width:24px; height:24px; border-radius:50%; object-fit:cover;">
-              <span style="font-size: 12px;">${u.name}</span>
-            </div>
-            <button class="btn-clean" style="height: 28px; padding: 0 10px; font-size: 11px; background: #10b981;" onclick="document.getElementById('callTargetInput').value='${u.name}'; startCall();">通話</button>
-          `;
-          container.appendChild(div);
-        });
-      });
+    function toggleVoiceRecord() {
+      if (!isRecording) {
+        startVoiceRecord();
+      } else {
+        stopVoiceRecord();
+      }
     }
 
     function switchTab(tabName) {
