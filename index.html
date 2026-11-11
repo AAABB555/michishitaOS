@@ -1048,10 +1048,8 @@
       }
     }
 
-function endCall(notify = true) {
+    function endCall(notify = true) {
       const activeSender = impersonatedName || myName;
-      
-      // 自分と相手の双方のシグナリング領域をクリーンアップ
       if (notify && callRoomRef) {
         db.ref(`secret_calls/${callRoomRef}`).set({
           type: 'hangup',
@@ -1067,18 +1065,6 @@ function endCall(notify = true) {
         pc.close();
         pc = null;
       }
-
-      document.getElementById('remoteAudio').srcObject = null;
-      document.getElementById('callStatusText').innerText = "通話待機中...";
-      document.getElementById('hangUpBtn').style.display = 'none';
-
-      // 自分のデータも確実に削除
-      db.ref(`secret_calls/${activeSender}`).remove();
-      if (callRoomRef) {
-        db.ref(`secret_calls/${callRoomRef}`).remove();
-      }
-      callRoomRef = null;
-    }
 
       document.getElementById('remoteAudio').srcObject = null;
       document.getElementById('callStatusText').innerText = "通話待機中...";
