@@ -765,7 +765,7 @@
 
         <div class="setting-card" style="border-color: #ef4444;">
           <div class="setting-title" style="color: #ef4444;">⚠️ アカウント削除</div>
-          <div style="font-size: 11.5px; color: #475569; font-weight: 700;">この操作を行うと,あなたのデータが完全に削除され,初期登録画面に戻ります。</div>
+          <div style="font-size: 11.5px; color: #475569; font-weight: 700;">この操作を行うと、あなたのデータが完全に削除され、初期登録画面に戻ります。</div>
           <button class="btn-clean" style="background: #ef4444; font-size: 11px; margin-top: 4px;" onclick="deleteMyAccount()">アカウントを完全に削除する</button>
         </div>
       </div>
@@ -969,16 +969,13 @@
               answer: answer
             });
 
-            document.getElementById('callStatusText').innerText = `${data.sender} と通話中`;
-            document.getElementById('hangUpBtn').style.display = 'block';
+            document.getElementById('callStatusText').innerText = `${data.sender} と接続中...`;
           } else {
             db.ref(`secret_calls/${data.sender}`).update({ type: 'reject', sender: id });
             db.ref(`secret_calls/${id}`).remove();
           }
         } else if (data.type === 'answer' && pc) {
           await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-          document.getElementById('callStatusText').innerText = "通話中";
-          document.getElementById('hangUpBtn').style.display = 'block';
         } else if (data.type === 'candidate' && pc) {
           try {
             await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
@@ -1002,6 +999,17 @@
 
       pc = new RTCPeerConnection(configuration);
 
+      pc.oniceconnectionstatechange = () => {
+        const state = pc.iceConnectionState;
+        document.getElementById('callStatusText').innerText = `ICE Status: ${state}`;
+        if (state === 'connected' || state === 'completed') {
+          document.getElementById('callStatusText').innerText = "通話中 (接続成功)";
+          document.getElementById('hangUpBtn').style.display = 'block';
+        } else if (state === 'failed' || state === 'disconnected') {
+          document.getElementById('callStatusText').innerText = "接続失敗 (ネットワーク制限の可能性)";
+        }
+      };
+
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
@@ -1015,7 +1023,7 @@
       pc.ontrack = (event) => {
         audio.srcObject = event.streams[0];
         audio.play().catch(err => {
-          console.log("自動再生が制限されました。プレイヤーの再生ボタンを押してください。");
+          console.log("Audio play blocked:", err);
         });
       };
 
