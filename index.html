@@ -5,10 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, nofollow">
   <title>道下通信網 - 道下特設ポータル</title>
-  <!-- Firebase CDN -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-  <!-- PeerJS CDN -->
   <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
   <style>
     * {
@@ -180,11 +178,6 @@
       color: #ffffff;
       box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);
     }
-    .tab-item.disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
     .tab-unread-dot {
       position: absolute;
       top: 4px;
@@ -222,8 +215,6 @@
       gap: 8px;
       align-items: flex-start;
       max-width: 88%;
-      touch-action: pan-y;
-      transition: transform 0.15s ease-out;
     }
     .chat-row.mine {
       align-self: flex-end;
@@ -256,16 +247,6 @@
       background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
       color: #ffffff;
       border-color: #0284c7;
-    }
-
-    .chat-bubble.burning {
-      animation: burnEffect 0.8s forwards;
-    }
-    @keyframes burnEffect {
-      0% { transform: scale(1); filter: brightness(1); background: #fff; }
-      30% { transform: scale(1.03) rotate(1deg); filter: brightness(1.5) sepia(1) hue-rotate(-50deg); background: #f97316; }
-      70% { transform: scale(0.95) rotate(-2deg); filter: brightness(0.8) grayscale(0.5); background: #dc2626; color: transparent; }
-      100% { transform: scale(0) translateY(30px); opacity: 0; }
     }
 
     .bubble-name {
@@ -309,10 +290,14 @@
       line-height: 1.4;
       font-weight: 700;
     }
+    .bubble-text a {
+      color: inherit;
+      text-decoration: underline;
+      word-break: break-all;
+    }
 
     .bubble-footer {
       display: flex;
-      flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
       gap: 6px;
@@ -330,13 +315,13 @@
 
     .msg-action-btn {
       background: #f1f5f9;
-      border: 1px solid #cbd5e1;
+      border: 1.5px solid #cbd5e1;
       border-radius: 8px;
       color: #334155;
       cursor: pointer;
-      font-size: 10.5px;
-      font-weight: 800;
-      padding: 2px 6px;
+      font-size: 11px;
+      font-weight: 900;
+      padding: 2px 8px;
     }
     .chat-row.mine .msg-action-btn {
       background: rgba(255,255,255,0.2);
@@ -344,27 +329,30 @@
       color: #fff;
     }
 
-    .reaction-bar {
+    .reaction-display-bar {
       display: flex;
+      flex-wrap: wrap;
       gap: 3px;
-      align-items: center;
+      margin-top: 2px;
     }
-    .reaction-btn {
+    .reaction-pill {
       background: #f1f5f9;
       border: 1px solid #cbd5e1;
       border-radius: 10px;
-      padding: 1px 5px;
+      padding: 1px 6px;
       font-size: 10.5px;
       font-weight: 800;
-      cursor: pointer;
       color: #334155;
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
     }
-    .reaction-btn.active {
+    .reaction-pill.active {
       background: #e0f2fe;
       border-color: #0284c7;
       color: #0284c7;
     }
-    .chat-row.mine .reaction-btn {
+    .chat-row.mine .reaction-pill {
       background: rgba(255,255,255,0.2);
       border-color: rgba(255,255,255,0.4);
       color: #fff;
@@ -424,6 +412,11 @@
       cursor: pointer;
       box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
       white-space: nowrap;
+    }
+    .btn-clean:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+      box-shadow: none;
     }
     .btn-icon {
       background: #e0f2fe;
@@ -516,39 +509,51 @@
       font-weight: 900;
     }
 
-    /* メニュー画面のスタイル */
     .menu-pane {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+      height: 100%;
+    }
+    .menu-section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 900;
+      font-size: 13px;
+      color: #64748b;
+      padding: 0 4px;
+    }
+    .group-list-container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .call-pane {
       padding: 20px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
-      overflow-y: auto;
       align-items: center;
+      justify-content: center;
+      gap: 16px;
+      height: 100%;
       text-align: center;
-    }
-    .menu-card {
-      background: #ffffff;
-      border: 1.5px solid #e2e8f0;
-      border-radius: 16px;
-      padding: 20px;
-      width: 100%;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.04);
     }
   </style>
 </head>
 <body class="mode-mobile" id="bodyRoot">
 
-  <!-- BANロック画面 -->
   <div id="banScreen" class="custom-modal" style="display: none; z-index: 99999; background: #0f172a;">
     <div class="modal-card" style="border-color: #ef4444;">
       <div class="modal-title" style="color: #ef4444; font-size: 22px;">🚫 アカウント停止中</div>
       <div class="modal-desc" style="color: #94a3b8; font-size: 13.5px; margin-top: 10px;">
-        このアカウントは管理者によってBANされています。<br>管理者がBANリストからあなたを外すと、自動的に通信網に復帰できます。
+        このアカウントは管理者によってBANされています。
       </div>
     </div>
   </div>
 
-  <!-- 初回名前登録モーダル -->
   <div id="nameModal" class="custom-modal" style="display: none;">
     <div class="modal-card">
       <div class="modal-title">🔐 エージェント道下に登録</div>
@@ -558,7 +563,6 @@
     </div>
   </div>
 
-  <!-- 画像送信プレビュー確認モーダル -->
   <div id="imgConfirmModal" class="custom-modal" style="display: none;">
     <div class="modal-card">
       <div class="modal-title">📷 画像送信の確認</div>
@@ -571,7 +575,6 @@
     </div>
   </div>
 
-  <!-- グループ作成モーダル -->
   <div id="groupCreateModal" class="custom-modal" style="display: none;">
     <div class="modal-card" style="max-width: 380px;">
       <div class="modal-title">👥 グループチャット作成</div>
@@ -581,32 +584,76 @@
       <div id="groupMemberListContainer" style="max-height: 150px; overflow-y: auto; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 8px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px; text-align: left;"></div>
       <div style="display: flex; gap: 8px;">
         <button class="btn-clean" style="flex:1; background: #64748b;" onclick="closeGroupModal()">キャンセル</button>
-        <button class="btn-clean" style="flex:1;" onclick="confirmCreateGroup()">作成する</button>
+        <button class="btn-clean" style="flex:1;" onclick="confirmCreateGroup()">作成者として作成</button>
       </div>
     </div>
   </div>
 
-  <!-- メッセージアクションメニューモーダル（…ボタン用） -->
-  <div id="msgActionModal" class="custom-modal" style="display: none; background: rgba(15, 23, 42, 0.4);" onclick="closeMsgActionModal()">
-    <div class="modal-card" style="max-width: 260px; padding: 16px;" onclick="event.stopPropagation()">
-      <div class="modal-title" style="font-size: 14px; margin-bottom: 12px;">メッセージ操作</div>
+  <div id="addGroupMemberModal" class="custom-modal" style="display: none;">
+    <div class="modal-card" style="max-width: 360px; text-align: left;">
+      <div class="modal-title" style="font-size: 16px; margin-bottom: 4px;">＋ メンバーを追加</div>
+      <div style="font-size: 12px; color: #64748b; font-weight: 800; margin-bottom: 12px;">追加したいメンバーを選択してください。</div>
+      <div id="addGroupCandidateList" style="max-height: 150px; overflow-y: auto; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 6px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px;"></div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn-clean" style="flex:1; background: #64748b; height: 36px; font-size: 11px;" onclick="document.getElementById('addGroupMemberModal').style.display='none'">キャンセル</button>
+        <button class="btn-clean" style="flex:1; height: 36px; font-size: 11px;" onclick="confirmAddGroupMembers()">追加する</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="transferOwnerModal" class="custom-modal" style="display: none;">
+    <div class="modal-card" style="max-width: 360px; text-align: left;">
+      <div class="modal-title" style="font-size: 16px; margin-bottom: 4px;">👑 作成者権限の譲渡</div>
+      <div style="font-size: 12px; color: #64748b; font-weight: 800; margin-bottom: 12px;">あなたが退会するためには、次の作成者を誰にするか選択する必要があります。</div>
+      <div id="transferCandidateList" style="max-height: 140px; overflow-y: auto; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 6px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px;"></div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn-clean" style="flex:1; background: #64748b; height: 36px; font-size: 11px;" onclick="document.getElementById('transferOwnerModal').style.display='none'">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="groupSettingsModal" class="custom-modal" style="display: none;" onclick="closeGroupSettingsModal()">
+    <div class="modal-card" style="max-width: 360px; text-align: left;" onclick="event.stopPropagation()">
+      <div class="modal-title" id="groupSettingsTitle" style="font-size: 16px; margin-bottom: 4px;">グループ管理</div>
+      <div id="groupSettingsSubtitle" style="font-size: 11px; color: #64748b; font-weight: 800; margin-bottom: 12px;"></div>
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <div style="font-size: 12px; font-weight: 900; color: #0284c7;">メンバー一覧</div>
+        <button class="btn-clean" style="height: 26px; padding: 0 10px; font-size: 11px;" onclick="openAddGroupMemberModal()">＋ 追加</button>
+      </div>
+      <div id="groupSettingsMemberList" style="max-height: 140px; overflow-y: auto; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 6px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px;"></div>
+
       <div style="display: flex; flex-direction: column; gap: 8px;">
-        <button class="btn-clean" style="background: #0284c7; height: 38px; font-size: 12px;" onclick="actionCopyMsg()">📋 テキストをコピー</button>
-        <button class="btn-clean" style="background: #10b981; height: 38px; font-size: 12px;" onclick="actionReplyMsg()">↩️ 返信</button>
-        <div style="font-size: 11px; font-weight: 800; color: #64748b; margin-top: 4px;">リアクション:</div>
-        <div style="display: flex; justify-content: center; gap: 6px;">
-          <button class="reaction-btn" style="padding: 6px 12px; font-size: 14px;" onclick="actionReaction('👍')">👍</button>
-          <button class="reaction-btn" style="padding: 6px 12px; font-size: 14px;" onclick="actionReaction('🔥')">🔥</button>
-          <button class="reaction-btn" style="padding: 6px 12px; font-size: 14px;" onclick="actionReaction('草')">草</button>
-          <button class="reaction-btn" style="padding: 6px 12px; font-size: 14px;" onclick="actionReaction('❤️')">❤️</button>
+        <button class="btn-clean" style="background: #f59e0b; font-size: 12px; height: 38px;" onclick="actionLeaveGroup()">🚪 このグループを自主退会する</button>
+        <button id="groupDeleteBtn" class="btn-clean" style="display:none; background: #ef4444; font-size: 12px; height: 38px;" onclick="actionDeleteGroup()">🗑️ グループを完全に削除する</button>
+        <button class="btn-clean" style="background: #64748b; font-size: 11px; height: 34px;" onclick="closeGroupSettingsModal()">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="msgActionModal" class="custom-modal" style="display: none; background: rgba(15, 23, 42, 0.4);" onclick="closeMsgActionModal()">
+    <div class="modal-card" style="max-width: 280px; padding: 16px;" onclick="event.stopPropagation()">
+      <div class="modal-title" style="font-size: 14px; margin-bottom: 10px;">メッセージ操作</div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <button class="btn-clean" style="background: #0284c7; height: 36px; font-size: 12px;" onclick="actionCopyMsg()">📋 テキストをコピー</button>
+        <button class="btn-clean" style="background: #10b981; height: 36px; font-size: 12px;" onclick="actionReplyMsg()">↩️ 返信</button>
+        <div style="font-size: 11px; font-weight: 800; color: #64748b; margin-top: 2px;">リアクション (8種類):</div>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;">
+          <button class="reaction-pill" style="padding: 6px 0; justify-content: center; font-size: 14px; cursor:pointer;" onclick="actionReaction('👍')">👍</button>
+          <button class="reaction-pill" style="padding: 6px 0; justify-content: center; font-size: 14px; cursor:pointer;" onclick="actionReaction('🔥')">🔥</button>
+          <button class="reaction-pill" style="padding: 6px 0; justify-content: center; font-size: 14px; cursor:pointer;" onclick="actionReaction('🤣')">🤣</button>
+          <button class="reaction-pill" style="padding: 6px 0; justify-content: center; font-size: 14px; cursor:pointer;" onclick="actionReaction('❤️')">❤️</button>
+          <button class="reaction-pill" style="padding: 6px 0; justify-content: center; font-size: 14px; cursor:pointer;" onclick="actionReaction('✨')">✨</button>
+          <button class="reaction-pill" style="padding: 6px 0; justify-content: center; font-size: 14px; cursor:pointer;" onclick="actionReaction('うお😅')">うお😅</button>
+          <button class="reaction-pill" style="padding: 6px 0; justify-content: center; font-size: 14px; cursor:pointer;" onclick="actionReaction('😭')">😭</button>
+          <button class="reaction-pill" style="padding: 6px 0; justify-content: center; font-size: 14px; cursor:pointer;" onclick="actionReaction('🤔')">🤔</button>
         </div>
-        <button class="btn-clean" style="background: #64748b; height: 34px; font-size: 11px; margin-top: 8px;" onclick="closeMsgActionModal()">閉じる</button>
+        <button class="btn-clean" style="background: #64748b; height: 32px; font-size: 11px; margin-top: 4px;" onclick="closeMsgActionModal()">閉じる</button>
       </div>
     </div>
   </div>
 
   <div class="app-container mode-mobile" id="appContainer">
-    <!-- ヘッダー -->
     <header class="app-header">
       <div class="logo-area">
         <img id="headerUserAvatar" class="user-avatar-head" src="" alt="Icon">
@@ -621,49 +668,35 @@
       </div>
     </header>
 
-    <!-- タブバー（メニュー チャット 通話 設定） -->
     <div class="tab-bar">
       <div class="tab-item active" onclick="switchTab('menu')">🏠 メニュー</div>
       <div class="tab-item" onclick="switchTab('dm')">
         💬 チャット
         <span class="tab-unread-dot" id="tabUnreadDot"></span>
       </div>
-      <div class="tab-item disabled" onclick="alert('通話機能は現在使用不可です')">📞 通話</div>
+      <div class="tab-item" onclick="switchTab('call')">📞 通話</div>
       <div class="tab-item" onclick="switchTab('settings')">⚙️ 設定</div>
     </div>
 
-    <!-- ================= 1. メニュータブ ================= -->
     <div id="viewMenu" class="view-content active">
       <div class="menu-pane">
-        <div class="menu-card">
-          <div class="modal-title" style="font-size: 16px;">🚀 道下特設ポータルへようこそ</div>
-          <div class="modal-desc" style="margin-top: 8px;">
-            学校の通信網を活用した非公式特設ポータルです。安全かつ快適にエージェント同士の連絡や情報共有を行えます。
-          </div>
+        <div class="menu-section-header">
+          <span>👥 グループチャット一覧</span>
+          <button class="btn-clean" style="height: 30px; padding: 0 12px; font-size: 11px;" onclick="openGroupModal()">＋ 作成</button>
         </div>
-        <div class="menu-card">
-          <div class="modal-title" style="font-size: 14px; color: #10b981;">📡 通信網ステータス</div>
-          <div style="font-size: 12px; font-weight: 800; color: #475569; margin-top: 6px;">
-            接続状態: <span style="color: #10b981;">🟢 オンライン・安全</span><br>
-            セキュリティプロトコル: 有効 (noindex)
-          </div>
-        </div>
+        <div class="group-list-container" id="menuGroupListContainer"></div>
       </div>
     </div>
 
-    <!-- ================= 2. チャットタブ (個人DM & グループ) ================= -->
     <div id="viewDm" class="view-content">
       <div class="dm-layout" id="dmUserListLayout">
-        <div style="padding: 12px 16px 6px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
-          <span style="font-weight: 900; font-size: 13px; color: #64748b;">チャット一覧 (個人・グループ)</span>
-          <button class="btn-clean" style="height: 30px; padding: 0 12px; font-size: 11px;" onclick="openGroupModal()">＋ グループ作成</button>
-        </div>
+        <div style="padding: 12px 16px 6px; font-weight: 900; font-size: 13px; color: #64748b; flex-shrink: 0;">エージェント道下一覧 (個人チャット)</div>
         <div class="user-list-pane" id="onlineUserListContainer"></div>
       </div>
       <div class="dm-layout" id="dmChatRoomLayout" style="display: none;">
         <div style="background: #ffffff; padding: 8px 16px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
           <button class="btn-clean" style="height: 30px; padding: 0 10px; font-size: 11.5px; background: #64748b;" onclick="backToUserList()">← 戻る</button>
-          <div id="activeDmTitle" style="font-weight: 900; font-size: 13.5px; color: #0284c7;"></div>
+          <div id="activeDmTitle" style="font-weight: 900; font-size: 13.5px; color: #0284c7; cursor: pointer;" onclick="openGroupSettingsModalIfGroup()"></div>
           <div style="width: 45px;"></div>
         </div>
         <div class="messages-area" id="dmMessagesContainer"></div>
@@ -674,16 +707,29 @@
         <div class="input-box-area">
           <input type="file" id="dmImgInput" accept="image/*" style="display: none;" onchange="handleFileSelect(this, 'dm')">
           <button class="btn-icon" onclick="document.getElementById('dmImgInput').click()">📷</button>
-          <input type="text" id="dmInput" class="text-input" placeholder="メッセージを入力..." onkeydown="if(event.key==='Enter') sendDmMsg()">
-          <button class="btn-clean" onclick="sendDmMsg()">送信</button>
+          <input type="text" id="dmInput" class="text-input" placeholder="メッセージを入力 (最大350文字)..." maxlength="350" onkeydown="if(event.key==='Enter') sendDmMsg()">
+          <button class="btn-clean" id="sendBtn" onclick="sendDmMsg()">送信</button>
         </div>
       </div>
     </div>
 
-    <!-- ================= 3. 設定タブ ================= -->
+    <div id="viewCall" class="view-content">
+      <div class="call-pane">
+        <div class="setting-title" style="font-size: 18px;">📞 音声通話網</div>
+        <div id="callStatusText" style="font-size: 13px; font-weight: 800; color: #64748b;">通話待機中...</div>
+        <audio id="remoteAudio" autoplay></audio>
+        <div id="callControlArea" style="display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 280px;">
+          <input type="text" id="callTargetInput" class="modal-input" placeholder="通話相手の道下ID" style="margin-bottom: 0;">
+          <button class="btn-clean" onclick="startCall()" style="background: #10b981;">📞 発信する</button>
+          <button class="btn-clean" id="hangUpBtn" onclick="endCall()" style="background: #ef4444; display: none;">🔴 通話を切る</button>
+        </div>
+        <div style="font-size: 12px; font-weight: 900; color: #0284c7; margin-top: 10px;">通話可能なエージェント:</div>
+        <div id="callUserListContainer" style="width: 100%; max-width: 320px; max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;"></div>
+      </div>
+    </div>
+
     <div id="viewSettings" class="view-content">
       <div class="settings-pane">
-        <!-- 管理者専用司令室 -->
         <div class="setting-card" id="adminPanelCard" style="display:none; border-color:#ef4444; background:#fff1f2;">
           <div class="setting-title" style="color:#ef4444;">🛡️ 管理者セキュリティ司令室 (BANリスト管理)</div>
           <div style="font-size:11.5px; color:#475569; font-weight:700;">現在参加中のユーザー、およびBANリストの管理が行えます。</div>
@@ -717,6 +763,12 @@
           <input type="text" id="settingNameInput" class="modal-input" maxlength="10">
           <button class="btn-clean" onclick="updateNameFromSettings()">名前を保存</button>
         </div>
+
+        <div class="setting-card" style="border-color: #ef4444;">
+          <div class="setting-title" style="color: #ef4444;">⚠️ アカウント削除</div>
+          <div style="font-size: 11.5px; color: #475569; font-weight: 700;">この操作を行うと、あなたのデータが完全に削除され、初期登録画面に戻ります。</div>
+          <button class="btn-clean" style="background: #ef4444; font-size: 11px; margin-top: 4px;" onclick="deleteMyAccount()">アカウントを完全に削除する</button>
+        </div>
       </div>
     </div>
   </div>
@@ -726,12 +778,18 @@
 
     const STORAGE_NAME_KEY = 'SECRET_NETWORK_AGENT_NAME_V1';
     const STORAGE_ICON_KEY = 'SECRET_NETWORK_AGENT_ICON_V1';
+    const STORAGE_MODE_KEY = 'SECRET_NETWORK_SCREEN_MODE_V1';
 
     let myName = localStorage.getItem(STORAGE_NAME_KEY) || "";
     let myIcon = localStorage.getItem(STORAGE_ICON_KEY) || DEFAULT_ICON_1;
     let isAdmin = false;
+
     let impersonatedName = null;
     let impersonatedIcon = null;
+
+    let peer = null;
+    let currentCall = null;
+    let localStream = null;
 
     const firebaseConfig = {
       databaseURL: "https://michishita-typing-94d91-default-rtdb.firebaseio.com"
@@ -742,11 +800,16 @@
     const db = firebase.database();
 
     let currentActiveDmUser = null;
-    let isPcMode = false;
+    let isPcMode = (localStorage.getItem(STORAGE_MODE_KEY) === 'pc');
     let replyingTo = null;
     let pendingImageData = null;
     let pendingImageMode = null;
-    let activeMsgContext = null; // for action modal
+    let activeMsgContext = null;
+    let activeChatType = 'dm';
+    let currentGroupId = null;
+    let currentGroupData = null;
+
+    let canSend = true;
 
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') triggerPanic();
@@ -768,10 +831,29 @@
     }
 
     window.onload = function() {
+      applySavedScreenMode();
       updateAvatarDisplays();
       cleanupInactiveUsers();
       checkBanStatusAndInit();
     };
+
+    function applySavedScreenMode() {
+      const container = document.getElementById('appContainer');
+      const btn = document.getElementById('ratioToggleBtn');
+      if (isPcMode) {
+        container.classList.remove('mode-mobile'); container.classList.add('mode-pc');
+        btn.innerText = "📱スマホ";
+      } else {
+        container.classList.remove('mode-pc'); container.classList.add('mode-mobile');
+        btn.innerText = "💻PC";
+      }
+    }
+
+    function toggleScreenMode() {
+      isPcMode = !isPcMode;
+      localStorage.setItem(STORAGE_MODE_KEY, isPcMode ? 'pc' : 'mobile');
+      applySavedScreenMode();
+    }
 
     function checkBanStatusAndInit() {
       if (!myName || myName === "undefined" || myName === "null") {
@@ -808,9 +890,10 @@
     }
 
     function updateAvatarDisplays() {
-      const activeIcon = impersonatedName ? (impersonatedIcon || myIcon) : myIcon;
-      document.getElementById('headerUserAvatar').src = activeIcon;
-      document.getElementById('settingsAvatarPreview').src = activeIcon;
+      const activeIcon = impersonatedName ? impersonatedIcon : myIcon;
+      document.getElementById('headerUserAvatar').src = activeIcon || DEFAULT_ICON_1;
+      document.getElementById('settingsAvatarPreview').src = activeIcon || DEFAULT_ICON_1;
+      document.getElementById('settingNameInput').value = impersonatedName || myName;
     }
 
     function saveInitialName() {
@@ -833,198 +916,164 @@
             return;
           }
 
-          if (confirm(`「${targetName}」は使用可能です！参加しますか？`)) {
-            myName = targetName;
-            localStorage.setItem(STORAGE_NAME_KEY, myName);
-            document.getElementById('nameModal').style.display = 'none';
-            checkBanStatusAndInit();
-          }
+          myName = targetName;
+          localStorage.setItem(STORAGE_NAME_KEY, myName);
+          localStorage.setItem(STORAGE_ICON_KEY, DEFAULT_ICON_1);
+          myIcon = DEFAULT_ICON_1;
+
+          document.getElementById('nameModal').style.display = 'none';
+          checkBanStatusAndInit();
         });
       });
-    }
-
-    function quitAdminMode() {
-      isAdmin = false;
-      impersonatedName = null;
-      impersonatedIcon = null;
-      document.getElementById('adminHeaderBadge').style.display = 'none';
-      document.getElementById('adminPanelCard').style.display = 'none';
-      initApp();
-      alert("管理者モードを終了しました。");
-    }
-
-    function toggleScreenMode() {
-      isPcMode = !isPcMode;
-      const container = document.getElementById('appContainer');
-      const btn = document.getElementById('ratioToggleBtn');
-      if (isPcMode) {
-        container.classList.remove('mode-mobile'); container.classList.add('mode-pc');
-        btn.innerText = "📱スマホ";
-      } else {
-        container.classList.remove('mode-pc'); container.classList.add('mode-mobile');
-        btn.innerText = "💻PC";
-      }
     }
 
     function initApp() {
-      const displayName = impersonatedName ? `🛡️[憑依: ${impersonatedName}]` : myName;
-      document.getElementById('headerUserTag').innerText = `道下ID: ${displayName}`;
-      document.getElementById('settingNameInput').value = impersonatedName || myName;
-      
-      if (impersonatedName) {
-        document.getElementById('unimpersonateBtn').style.display = 'inline-block';
-      } else {
-        document.getElementById('unimpersonateBtn').style.display = 'none';
-      }
+      const activeSender = impersonatedName || myName;
+      document.getElementById('headerUserTag').innerText = `道下ID: ${activeSender}`;
+      document.getElementById('settingNameInput').value = activeSender;
 
-      if (isAdmin) {
-        document.getElementById('adminHeaderBadge').style.display = 'inline-block';
-        document.getElementById('adminPanelCard').style.display = 'flex';
-      }
-      registerUserPresence();
-      initUserListSync();
-    }
+      db.ref('secret_users/' + activeSender).set({
+        name: activeSender,
+        icon: myIcon,
+        lastActive: Date.now()
+      });
 
-    function registerUserPresence() {
-      const activeName = impersonatedName || myName;
-      const activeIconToUse = impersonatedName ? (impersonatedIcon || myIcon) : myIcon;
-      if (!activeName || activeName === "undefined") return;
-      const userRef = db.ref('secret_users/' + activeName);
-      userRef.set({ name: activeName, icon: activeIconToUse, lastActive: firebase.database.ServerValue.TIMESTAMP });
       if (window.presenceInterval) clearInterval(window.presenceInterval);
       window.presenceInterval = setInterval(() => {
-        userRef.update({ lastActive: firebase.database.ServerValue.TIMESTAMP, icon: activeIconToUse });
+        const curSender = impersonatedName || myName;
+        db.ref('secret_users/' + curSender).update({ lastActive: Date.now() });
       }, 10000);
+
+      initPeerConnection(activeSender);
+      initUserListSync();
+      initMenuGroupListSync();
+      initCallUserListSync();
+    }
+
+    function initPeerConnection(id) {
+      if (peer) peer.destroy();
+      peer = new Peer(id, {
+        config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
+      });
+
+      peer.on('open', (assignedId) => {
+        console.log('Peer connected with ID:', assignedId);
+      });
+
+      peer.on('call', (incomingCall) => {
+        if (confirm(`${incomingCall.peer} から着信がありました。応答しますか？`)) {
+          navigator.mediaDevices.getUserMedia({ audio: true, video: false }).then((stream) => {
+            localStream = stream;
+            incomingCall.answer(stream);
+            currentCall = incomingCall;
+            setupCallEvents();
+            document.getElementById('callStatusText').innerText = `${incomingCall.peer} と通話中`;
+            document.getElementById('hangUpBtn').style.display = 'block';
+          }).catch(err => {
+            alert("マイクの使用許可が必要です。");
+          });
+        } else {
+          incomingCall.close();
+        }
+      });
+    }
+
+    function setupCallEvents() {
+      currentCall.on('stream', (remoteStream) => {
+        const audio = document.getElementById('remoteAudio');
+        audio.srcObject = remoteStream;
+        audio.play().catch(e => console.log(e));
+      });
+
+      currentCall.on('close', () => {
+        endCall();
+      });
+    }
+
+    function startCall() {
+      const targetId = document.getElementById('callTargetInput').value.trim();
+      if (!targetId) return alert("通話相手のIDを入力してください！");
+      if (targetId === (impersonatedName || myName)) return alert("自分自身とは通話できません。");
+
+      navigator.mediaDevices.getUserMedia({ audio: true, video: false }).then((stream) => {
+        localStream = stream;
+        const call = peer.call(targetId, stream);
+        if (!call) return alert("通話の発信に失敗しました。");
+        currentCall = call;
+        setupCallEvents();
+        document.getElementById('callStatusText').innerText = `${targetId} へ発信中...`;
+        document.getElementById('hangUpBtn').style.display = 'block';
+      }).catch(err => {
+        alert("マイクの使用許可が必要です。");
+      });
+    }
+
+    function endCall() {
+      if (currentCall) {
+        currentCall.close();
+        currentCall = null;
+      }
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+      }
+      document.getElementById('remoteAudio').srcObject = null;
+      document.getElementById('callStatusText').innerText = "通話待機中...";
+      document.getElementById('hangUpBtn').style.display = 'none';
+    }
+
+    function initCallUserListSync() {
+      const container = document.getElementById('callUserListContainer');
+      const activeSender = impersonatedName || myName;
+      db.ref('secret_users').on('value', (snap) => {
+        const users = snap.val() || {};
+        container.innerHTML = '';
+        Object.values(users).forEach(u => {
+          if (!u.name || u.name === "undefined" || u.name === activeSender) return;
+          const div = document.createElement('div');
+          div.className = 'user-item';
+          div.style.padding = '8px 12px';
+          div.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <img src="${u.icon || DEFAULT_ICON_1}" style="width:24px; height:24px; border-radius:50%; object-fit:cover;">
+              <span style="font-size: 12px;">${u.name}</span>
+            </div>
+            <button class="btn-clean" style="height: 28px; padding: 0 10px; font-size: 11px; background: #10b981;" onclick="document.getElementById('callTargetInput').value='${u.name}'; startCall();">通話</button>
+          `;
+          container.appendChild(div);
+        });
+      });
     }
 
     function switchTab(tabName) {
-      if (tabName === 'call') return;
-      const tabs = ['menu', 'dm', 'settings'];
-      tabs.forEach((t) => {
-        const el = document.getElementById('view' + t.charAt(0).toUpperCase() + t.slice(1));
-        if (el) el.classList.remove('active');
-      });
-      document.querySelectorAll('.tab-item').forEach(i => i.classList.remove('active'));
-      
+      document.querySelectorAll('.tab-item').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.view-content').forEach(el => el.classList.remove('active'));
+
       if (tabName === 'menu') {
         document.querySelectorAll('.tab-item')[0].classList.add('active');
-      }
-      if (tabName === 'dm') {
+        document.getElementById('viewMenu').classList.add('active');
+      } else if (tabName === 'dm') {
         document.querySelectorAll('.tab-item')[1].classList.add('active');
-        backToUserList();
-      }
-      if (tabName === 'settings') {
+        document.getElementById('viewDm').classList.add('active');
+      } else if (tabName === 'call') {
+        document.querySelectorAll('.tab-item')[2].classList.add('active');
+        document.getElementById('viewCall').classList.add('active');
+      } else if (tabName === 'settings') {
         document.querySelectorAll('.tab-item')[3].classList.add('active');
+        document.getElementById('viewSettings').classList.add('active');
       }
-
-      document.getElementById('view' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
     }
 
-    function initAdminPanel() {
-      const userContainer = document.getElementById('adminUserListContainer');
-      const banContainer = document.getElementById('adminBanListContainer');
-
-      db.ref('secret_users').on('value', (snap) => {
-        const users = snap.val() || {};
-        userContainer.innerHTML = '';
-        Object.values(users).forEach(u => {
-          if (!u.name || u.name === "undefined") return;
-          const div = document.createElement('div');
-          div.style.cssText = "display:flex; justify-content:space-between; align-items:center; background:#fff; padding:6px 10px; border-radius:8px; font-size:11px; font-weight:800;";
-          div.innerHTML = `
-            <span>${u.name}</span>
-            <div style="display:flex; gap:4px;">
-              <button onclick="impersonateUser('${u.name}', '${u.icon || DEFAULT_ICON_1}')" style="background:#0284c7; color:#fff; border:none; padding:2px 6px; border-radius:4px; cursor:pointer;">憑依</button>
-              <button onclick="deleteAccount('${u.name}')" style="background:#f97316; color:#fff; border:none; padding:2px 6px; border-radius:4px; cursor:pointer;">削除</button>
-              <button onclick="banUser('${u.name}')" style="background:#ef4444; color:#fff; border:none; padding:2px 6px; border-radius:4px; cursor:pointer;">BAN</button>
-            </div>
-          `;
-          userContainer.appendChild(div);
-        });
-      });
-
-      db.ref('secret_bans').on('value', (snap) => {
-        const bans = snap.val() || {};
-        banContainer.innerHTML = '';
-        const bannedNames = Object.keys(bans).filter(name => bans[name] === true);
-
-        if (bannedNames.length === 0) {
-          banContainer.innerHTML = '<div style="font-size:11px; color:#64748b; font-weight:700; padding:4px;">現在BANされているユーザーはいません</div>';
-          return;
-        }
-
-        bannedNames.forEach(name => {
-          const div = document.createElement('div');
-          div.style.cssText = "display:flex; justify-content:space-between; align-items:center; background:#fff; padding:6px 10px; border-radius:8px; font-size:11px; font-weight:800;";
-          div.innerHTML = `
-            <span style="color:#ef4444;">🚫 ${name}</span>
-            <button onclick="unbanUser('${name}')" style="background:#10b981; color:#fff; border:none; padding:2px 8px; border-radius:4px; cursor:pointer; font-weight:900;">BAN解除</button>
-          `;
-          banContainer.appendChild(div);
-        });
-      });
-    }
-
-    function impersonateUser(targetName, targetIcon) {
-      if (!confirm(`「${targetName}」に憑依しますか？`)) return;
-      impersonatedName = targetName;
-      impersonatedIcon = targetIcon || DEFAULT_ICON_1;
-      updateAvatarDisplays();
-      initApp();
-      alert(`${targetName} に憑依しました！アイコンや名前の変更、メッセージ送信が可能です。`);
-      switchTab('dm');
-    }
-
-    function stopImpersonation() {
-      impersonatedName = null;
-      impersonatedIcon = null;
-      updateAvatarDisplays();
-      initApp();
-      alert("憑依を解除し、元の自分のアカウントに戻りました。");
-    }
-
-    function deleteAccount(targetName) {
-      if (!confirm(`「${targetName}」のアカウントを削除しますか？`)) return;
-      db.ref('secret_users/' + targetName).remove();
-      alert(`「${targetName}」のアカウントを削除しました。`);
-    }
-
-    function banUser(targetName) {
-      if (!confirm(`「${targetName}」をBANリストに追加しますか？`)) return;
-      db.ref('secret_bans/' + targetName).set(true);
-      db.ref('secret_users/' + targetName).remove();
-      alert(`「${targetName}」をBANしました。`);
-    }
-
-    function unbanUser(targetName) {
-      if (!confirm(`「${targetName}」のBANを解除して通信網に復帰させますか？`)) return;
-      db.ref('secret_bans/' + targetName).remove();
-      alert(`「${targetName}」のBANを解除しました！`);
-    }
-
-    function adminBurnMessage(path, msgKey) {
-      if (!isAdmin) return;
-      if (!confirm("管理者権限でこのメッセージを炎上消去しますか？")) return;
-      
-      const bubbleEl = document.getElementById(`msg-bubble-${msgKey}`);
-      if (bubbleEl) {
-        bubbleEl.classList.add('burning');
-      }
-
-      setTimeout(() => {
-        db.ref(`${path}/${msgKey}`).remove();
-      }, 700);
-    }
-
-    function handleAvatarFileSelect(input) {
-      const file = input.files[0];
+    function handleAvatarFileSelect(inputElement) {
+      const file = inputElement.files[0];
       if (!file) return;
+
       const reader = new FileReader();
       reader.onload = function(e) {
         const img = new Image();
         img.onload = function() {
           const canvas = document.createElement('canvas');
-          const MAX_SIZE = 150;
+          const MAX_SIZE = 120;
           let width = img.width, height = img.height;
           if (width > height) { if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; } }
           else { if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; } }
@@ -1032,84 +1081,98 @@
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
           
-          const newIconData = canvas.toDataURL('image/jpeg', 0.8);
+          const base64Icon = canvas.toDataURL('image/jpeg', 0.7);
           if (impersonatedName) {
-            impersonatedIcon = newIconData;
-            db.ref('secret_users/' + impersonatedName).update({ icon: impersonatedIcon });
+            impersonatedIcon = base64Icon;
+            db.ref('secret_users/' + impersonatedName).update({ icon: base64Icon });
           } else {
-            myIcon = newIconData;
+            myIcon = base64Icon;
             localStorage.setItem(STORAGE_ICON_KEY, myIcon);
+            db.ref('secret_users/' + myName).update({ icon: myIcon });
           }
           updateAvatarDisplays();
-          registerUserPresence();
           alert("アイコンを変更しました！");
         }
         img.src = e.target.result;
       }
       reader.readAsDataURL(file);
-      input.value = '';
+      inputElement.value = '';
     }
 
     function resetToDefaultIcon() {
-      const defaultIcon = DEFAULT_ICON_1;
       if (impersonatedName) {
-        impersonatedIcon = defaultIcon;
-        db.ref('secret_users/' + impersonatedName).update({ icon: impersonatedIcon });
+        impersonatedIcon = DEFAULT_ICON_1;
+        db.ref('secret_users/' + impersonatedName).update({ icon: DEFAULT_ICON_1 });
       } else {
-        myIcon = defaultIcon;
+        myIcon = DEFAULT_ICON_1;
         localStorage.setItem(STORAGE_ICON_KEY, myIcon);
+        db.ref('secret_users/' + myName).update({ icon: DEFAULT_ICON_1 });
       }
       updateAvatarDisplays();
-      registerUserPresence();
       alert("初期アイコンに戻しました！");
     }
 
     function updateNameFromSettings() {
-      const newName = document.getElementById('settingNameInput').value.trim();
-      if (!newName) return alert("名前を入力してください");
-
-      if (newName === '78967') {
-        isAdmin = true;
-        document.getElementById('adminHeaderBadge').style.display = 'inline-block';
-        document.getElementById('adminPanelCard').style.display = 'flex';
-        initAdminPanel();
-        document.getElementById('settingNameInput').value = impersonatedName || myName;
-        alert("🛡️ 管理者モードにログインしました！");
-        return;
-      }
-
-      const targetName = newName.substring(0, 10);
+      const input = document.getElementById('settingNameInput').value.trim();
+      if (!input) return alert("名前を入力してください！");
+      const targetName = input.substring(0, 10);
       const currentActiveName = impersonatedName || myName;
-      if (targetName === currentActiveName) return alert("現在の名前と同じです。");
+
+      if (targetName === currentActiveName) return alert("変更がありません。");
 
       db.ref('secret_bans/' + targetName).once('value', (banSnap) => {
-        if (banSnap.val() === true) {
-          alert("その名前はBANされているため使用できません。");
-          return;
-        }
+        if (banSnap.val() === true) return alert("その名前はBANされています。");
 
         db.ref('secret_users/' + targetName).once('value', (snap) => {
           const uData = snap.val();
-          const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-
-          if (uData && uData.lastActive && (Date.now() - uData.lastActive <= SEVEN_DAYS_MS)) {
-            alert(`「${targetName}」は現在他の人が使用しています。`);
-            return;
+          if (uData && uData.lastActive && (Date.now() - uData.lastActive <= 7 * 24 * 60 * 60 * 1000)) {
+            return alert(`「${targetName}」は現在他の人が使用しています。`);
           }
 
           if (confirm(`「${targetName}」に変更しますか？`)) {
+            const activeIconToUse = impersonatedName ? impersonatedIcon : myIcon;
             db.ref('secret_users/' + currentActiveName).remove();
+            db.ref('secret_users/' + targetName).set({
+              name: targetName,
+              icon: activeIconToUse,
+              lastActive: Date.now()
+            });
+
+            db.ref('secret_groups').once('value', (groupSnap) => {
+              const groups = groupSnap.val() || {};
+              Object.entries(groups).forEach(([gId, gData]) => {
+                if (gData.members && gData.members.includes(currentActiveName)) {
+                  const newMembers = gData.members.map(m => m === currentActiveName ? targetName : m);
+                  const updates = { members: newMembers };
+                  if (gData.creator === currentActiveName) updates.creator = targetName;
+                  db.ref('secret_groups/' + gId).update(updates);
+                }
+              });
+            });
+
             if (impersonatedName) {
               impersonatedName = targetName;
             } else {
               myName = targetName;
               localStorage.setItem(STORAGE_NAME_KEY, myName);
             }
+
+            if (window.presenceInterval) clearInterval(window.presenceInterval);
             checkBanStatusAndInit();
+            initPeerConnection(targetName);
             alert(`名前を変更しました！`);
           }
         });
       });
+    }
+
+    function deleteMyAccount() {
+      if (!confirm("本当にアカウントを完全に削除しますか？")) return;
+      const activeSender = impersonatedName || myName;
+      db.ref('secret_users/' + activeSender).remove();
+      localStorage.removeItem(STORAGE_NAME_KEY);
+      localStorage.removeItem(STORAGE_ICON_KEY);
+      location.reload();
     }
 
     function setReply(name, text) {
@@ -1134,7 +1197,6 @@
       });
     }
 
-    // --- グループ作成関連 ---
     function openGroupModal() {
       const container = document.getElementById('groupMemberListContainer');
       container.innerHTML = '';
@@ -1164,7 +1226,8 @@
       if (!groupName) return alert("グループ名を入力してください！");
 
       const chks = document.querySelectorAll('.group-member-chk:checked');
-      const members = [impersonatedName || myName];
+      const activeSender = impersonatedName || myName;
+      const members = [activeSender];
       chks.forEach(chk => members.push(chk.value));
 
       if (members.length < 2) return alert("自分以外に1人以上メンバーを選択してください！");
@@ -1172,6 +1235,7 @@
       const groupId = 'group_' + Date.now();
       const groupData = {
         name: groupName,
+        creator: activeSender,
         members: members,
         createdAt: Date.now()
       };
@@ -1182,7 +1246,244 @@
       });
     }
 
-    // --- メッセージアクションメニュー (…ボタン) ---
+    function openGroupSettingsModalIfGroup() {
+      if (activeChatType !== 'group' || !currentGroupId) return;
+      
+      const activeSender = impersonatedName || myName;
+      db.ref('secret_groups/' + currentGroupId).once('value', (snap) => {
+        const gData = snap.val();
+        if (!gData) return;
+        currentGroupData = gData;
+
+        const isCreator = (gData.creator === activeSender);
+        const canManage = isCreator || isAdmin;
+
+        document.getElementById('groupSettingsTitle').innerText = `👥 ${gData.name} の管理`;
+        document.getElementById('groupSettingsSubtitle').innerText = `作成者: ${gData.creator || '不明'} | メンバー数: ${gData.members ? gData.members.length : 0}人`;
+
+        const memberListContainer = document.getElementById('groupSettingsMemberList');
+        memberListContainer.innerHTML = '';
+
+        if (gData.members) {
+          gData.members.forEach(member => {
+            const div = document.createElement('div');
+            div.style.cssText = "display:flex; justify-content:space-between; align-items:center; background:#f8fafc; padding:6px 10px; border-radius:8px; font-size:11.5px; font-weight:800;";
+            
+            let badgeOrBtn = '';
+            if (member === gData.creator) {
+              badgeOrBtn = `<span style="font-size:10px; color:#0284c7; font-weight:900;">👑 作成者</span>`;
+            } else if (canManage) {
+              badgeOrBtn = `<button class="btn-clean" style="height:26px; padding:0 8px; font-size:10px; background:#ef4444;" onclick="actionKickMember('${member}')">追放</button>`;
+            }
+
+            div.innerHTML = `<span>👤 ${member}</span>${badgeOrBtn}`;
+            memberListContainer.appendChild(div);
+          });
+        }
+
+        const deleteBtn = document.getElementById('groupDeleteBtn');
+        if (canManage) {
+          deleteBtn.style.display = 'block';
+        } else {
+          deleteBtn.style.display = 'none';
+        }
+
+        document.getElementById('groupSettingsModal').style.display = 'flex';
+      });
+    }
+
+    function closeGroupSettingsModal() {
+      document.getElementById('groupSettingsModal').style.display = 'none';
+    }
+
+    function openAddGroupMemberModal() {
+      if (!currentGroupData) return;
+      closeGroupSettingsModal();
+
+      const container = document.getElementById('addGroupCandidateList');
+      container.innerHTML = '';
+
+      db.ref('secret_users').once('value', (snap) => {
+        const users = snap.val() || {};
+        const currentMembers = currentGroupData.members || [];
+        let count = 0;
+
+        Object.values(users).forEach(u => {
+          if (!u.name || u.name === "undefined" || currentMembers.includes(u.name)) return;
+          count++;
+
+          const label = document.createElement('label');
+          label.style.cssText = "display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800; cursor: pointer;";
+          label.innerHTML = `<input type="checkbox" value="${u.name}" class="add-member-chk" style="width: 16px; height: 16px;"> <img src="${u.icon || DEFAULT_ICON_1}" style="width:20px;height:20px;border-radius:50%;object-fit:cover;"> ${u.name}`;
+          container.appendChild(label);
+        });
+
+        if (count === 0) {
+          container.innerHTML = '<div style="font-size: 11px; color: #64748b; font-weight: 700; text-align: center; padding: 10px;">追加できる他のメンバーがいません</div>';
+        }
+      });
+
+      document.getElementById('addGroupMemberModal').style.display = 'flex';
+    }
+
+    function confirmAddGroupMembers() {
+      const chks = document.querySelectorAll('.add-member-chk:checked');
+      if (chks.length === 0) return alert("追加するメンバーを選択してください！");
+      if (!currentGroupId || !currentGroupData) return;
+
+      const newMembers = [...(currentGroupData.members || [])];
+      chks.forEach(chk => {
+        if (!newMembers.includes(chk.value)) {
+          newMembers.push(chk.value);
+        }
+      });
+
+      db.ref(`secret_groups/${currentGroupId}/members`).set(newMembers).then(() => {
+        document.getElementById('addGroupMemberModal').style.display = 'none';
+        alert("メンバーを追加しました！");
+      });
+    }
+
+    function actionKickMember(targetMember) {
+      if (!confirm(`「${targetMember}」をグループから追放しますか？`)) return;
+      if (!currentGroupId || !currentGroupData) return;
+
+      const newMembers = currentGroupData.members.filter(m => m !== targetMember);
+      db.ref(`secret_groups/${currentGroupId}/members`).set(newMembers).then(() => {
+        sendSystemNotice(`${targetMember} が退会しました`);
+        alert(`「${targetMember}」を追放しました。`);
+        closeGroupSettingsModal();
+        openGroupSettingsModalIfGroup();
+      });
+    }
+
+    function actionLeaveGroup() {
+      if (!currentGroupId || !currentGroupData) return;
+      const activeSender = impersonatedName || myName;
+      const isCreator = (currentGroupData.creator === activeSender);
+      const otherMembers = currentGroupData.members.filter(m => m !== activeSender);
+
+      if (otherMembers.length === 0) {
+        if (!confirm("このグループから自主退会しますか？")) return;
+        db.ref('secret_groups/' + currentGroupId).remove();
+        db.ref('secret_group_messages/' + currentGroupId).remove();
+        closeGroupSettingsModal();
+        backToUserList();
+        alert("グループから退会しました。");
+        return;
+      }
+
+      if (isCreator) {
+        closeGroupSettingsModal();
+        openTransferOwnerModal(otherMembers);
+        return;
+      }
+
+      if (!confirm("このグループから自主退会しますか？")) return;
+      db.ref(`secret_groups/${currentGroupId}/members`).set(otherMembers).then(() => {
+        sendSystemNotice(`${activeSender} が退会しました`);
+        closeGroupSettingsModal();
+        backToUserList();
+        alert("グループから退会しました。");
+      });
+    }
+
+    function openTransferOwnerModal(candidates) {
+      const container = document.getElementById('transferCandidateList');
+      container.innerHTML = '';
+
+      candidates.forEach(member => {
+        const div = document.createElement('div');
+        div.style.cssText = "display:flex; justify-content:space-between; align-items:center; background:#f8fafc; padding:8px 12px; border-radius:8px; font-size:12px; font-weight:800;";
+        div.innerHTML = `
+          <span>👤 ${member}</span>
+          <button class="btn-clean" style="height:28px; padding:0 10px; font-size:11px;" onclick="confirmTransferAndLeave('${member}')">権限を譲渡して退会</button>
+        `;
+        container.appendChild(div);
+      });
+
+      document.getElementById('transferOwnerModal').style.display = 'flex';
+    }
+
+    function confirmTransferAndLeave(newCreator) {
+      if (!confirm(`「${newCreator}」を作成者に任命し、自分はグループを退会しますか？`)) return;
+      if (!currentGroupId || !currentGroupData) return;
+
+      const activeSender = impersonatedName || myName;
+      const newMembers = currentGroupData.members.filter(m => m !== activeSender);
+
+      db.ref(`secret_groups/${currentGroupId}`).update({
+        creator: newCreator,
+        members: newMembers
+      }).then(() => {
+        sendSystemNotice(`${activeSender} が退会しました`);
+        document.getElementById('transferOwnerModal').style.display = 'none';
+        backToUserList();
+        alert(`「${newCreator}」を作成者に任命し、グループから退会しました。`);
+      });
+    }
+
+    function actionDeleteGroup() {
+      if (!confirm("本当にこのグループを完全に削除しますか？")) return;
+      if (!currentGroupId) return;
+
+      db.ref('secret_groups/' + currentGroupId).remove();
+      db.ref('secret_group_messages/' + currentGroupId).remove();
+
+      closeGroupSettingsModal();
+      backToUserList();
+      alert("グループを削除しました。");
+    }
+
+    function sendSystemNotice(noticeText) {
+      if (!currentGroupId) return;
+      const now = Date.now();
+      db.ref('secret_group_messages/' + currentGroupId).push({
+        name: 'システム通知',
+        icon: DEFAULT_ICON_1,
+        text: noticeText,
+        type: 'system',
+        rawTime: now,
+        time: new Date(now).toLocaleTimeString('ja-JP', {hour: '2-digit', minute:'2-digit'})
+      });
+    }
+
+    function initMenuGroupListSync() {
+      const container = document.getElementById('menuGroupListContainer');
+      const activeSender = impersonatedName || myName;
+
+      db.ref('secret_groups').on('value', (groupSnap) => {
+        const groups = groupSnap.val() || {};
+        container.innerHTML = '';
+        let count = 0;
+
+        Object.entries(groups).forEach(([gId, gData]) => {
+          if (!gData.members || !gData.members.includes(activeSender)) return;
+          count++;
+
+          const memberCount = gData.members.length;
+          const div = document.createElement('div');
+          div.className = 'user-item';
+          div.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="width:32px; height:32px; border-radius:50%; background:#0284c7; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:14px;">👥</div>
+              <span>${gData.name} <span style="font-size:11px; color:#64748b; font-weight:700;">(${memberCount}人)</span></span>
+            </div>
+            <span style="font-size: 11px; color: #0284c7;">チャットを開く →</span>
+          `;
+          div.onclick = () => {
+            switchTab('dm');
+            openGroupChat(gId, gData.name, gData.members.length);
+          };
+          container.appendChild(div);
+        });
+
+        if (count === 0) {
+          container.innerHTML = '<div style="font-size: 12px; color: #64748b; font-weight: 700; text-align: center; padding: 20px;">参加しているグループはありません。<br>「＋ 作成」からグループを作ってみましょう！</div>';
+        }
+      });
+    }
+
     function openMsgActionModal(path, key, msgName, msgText, isMine) {
       activeMsgContext = { path, key, msgName, msgText, isMine };
       document.getElementById('msgActionModal').style.display = 'flex';
@@ -1217,10 +1518,24 @@
       closeMsgActionModal();
     }
 
+    function escapeAndLinkify(str) {
+      if (!str) return '';
+      const escaped = String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const urlRegex = /(https?:\/\/[^\s]+)/g;
+      return escaped.replace(urlRegex, '<a href="$1" target="_blank" onclick="event.stopPropagation()">$1</a>');
+    }
+
     function createMessageElement(key, msg, path) {
       const activeSender = impersonatedName || myName;
       const isMine = msg.name === activeSender;
       const row = document.createElement('div');
+
+      if (msg.type === 'system') {
+        row.style.cssText = "width: 100%; display: flex; justify-content: center; margin: 6px 0;";
+        row.innerHTML = `<div style="background: #e2e8f0; color: #475569; font-size: 11px; font-weight: 800; padding: 4px 12px; border-radius: 12px;">📢 ${escapeAndLinkify(msg.text)}</div>`;
+        return row;
+      }
+
       row.className = `chat-row ${isMine ? 'mine' : ''}`;
 
       const iconUrl = msg.icon || DEFAULT_ICON_1;
@@ -1229,37 +1544,43 @@
       html += `<div class="bubble-name"><span>${msg.name}</span><span>${msg.time}</span></div>`;
 
       if (msg.replyTo) {
-        html += `<div class="reply-quote">↩️ ${msg.replyTo.name}: ${escapeHtml(msg.replyTo.text)}</div>`;
+        html += `<div class="reply-quote">↩️ ${msg.replyTo.name}: ${escapeAndLinkify(msg.replyTo.text)}</div>`;
       }
 
       if (msg.type === 'image') {
         html += `<img src="${msg.data}" class="chat-img" onclick="window.open('${msg.data}')">`;
       } else {
-        html += `<div class="bubble-text">${escapeHtml(msg.text)}</div>`;
+        html += `<div class="bubble-text">${escapeAndLinkify(msg.text)}</div>`;
       }
 
       const reactions = msg.reactions || {};
-      const emojis = ['👍', '🔥', '草', '❤️'];
+      const emojis = ['👍', '🔥', '🤣', '❤️', '✨', 'うお😅', '😭', '🤔'];
+      let reactionHtml = '';
       
+      emojis.forEach(e => {
+        const usersMap = reactions[e] || {};
+        const count = Object.keys(usersMap).length;
+        if (count > 0) {
+          const active = usersMap[activeSender] ? 'active' : '';
+          reactionHtml += `<button class="reaction-pill ${active}" onclick="toggleReaction('${path}', '${key}', '${e}')">${e} ${count}</button>`;
+        }
+      });
+
+      if (reactionHtml) {
+        html += `<div class="reaction-display-bar">${reactionHtml}</div>`;
+      }
+
       html += `<div class="bubble-footer">`;
       html += `<div class="msg-actions">`;
-      html += `<button class="msg-action-btn" onclick="openMsgActionModal('${path}', '${key}', '${msg.name}', '${escapeHtml(msg.text || '画像')} (${isMine})')">…</button>`;
+      html += `<button class="msg-action-btn" onclick="openMsgActionModal('${path}', '${key}', '${msg.name}', '${(msg.text || '').replace(/'/g, "\\'")}', ${isMine})">…</button>`;
       
       if (isMine) {
-        html += `<button class="msg-action-btn" onclick="deleteMsg('${path}', '${key}')">🗑️取消</button>`;
+        html += `<button class="msg-action-btn" onclick="deleteMsg('${path}', '${key}')">🗑️取り消し</button>`;
       } else if (isAdmin) {
-        html += `<button class="msg-action-btn" style="color:#ef4444;" onclick="adminBurnMessage('${path}', '${key}')">🔥消去</button>`;
+        html += `<button class="msg-action-btn" style="color:#ef4444; border-color:#ef4444;" onclick="adminBurnMessage('${path}', '${key}')">🔥消去</button>`;
       }
       
-      html += `<div class="reaction-bar">`;
-      emojis.forEach(e => {
-        const count = Object.keys(reactions[e] || {}).length;
-        const active = (reactions[e] || {})[activeSender] ? 'active' : '';
-        html += `<button class="reaction-btn ${active}" onclick="toggleReaction('${path}', '${key}', '${e}')">${e}${count > 0 ? count : ''}</button>`;
-      });
       html += `</div>`;
-      html += `</div>`;
-
       html += `<div class="read-counter">${isMine ? '送信済み' : ''}</div>`;
       html += `</div></div>`;
 
@@ -1273,7 +1594,6 @@
       }
     }
 
-    // --- ユーザーリストおよびチャット一覧（個人＋グループ）の同期 ---
     function initUserListSync() {
       const container = document.getElementById('onlineUserListContainer');
       const tabUnreadDot = document.getElementById('tabUnreadDot');
@@ -1281,73 +1601,49 @@
       
       db.ref('secret_users').on('value', (userSnap) => {
         const users = userSnap.val() || {};
-        db.ref('secret_groups').on('value', (groupSnap) => {
-          const groups = groupSnap.val() || {};
-          db.ref('secret_dms').on('value', (dmSnap) => {
-            const allDms = dmSnap.val() || {};
-            container.innerHTML = '';
-            const now = Date.now();
-            let anyUnread = false;
+        db.ref('secret_dms').on('value', (dmSnap) => {
+          const allDms = dmSnap.val() || {};
+          container.innerHTML = '';
+          const now = Date.now();
+          let anyUnread = false;
 
-            // 1. グループチャット一覧の表示
-            Object.entries(groups).forEach(([gId, gData]) => {
-              if (!gData.members || !gData.members.includes(activeSender)) return;
-              
-              const div = document.createElement('div');
-              div.className = 'user-item';
-              div.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 10px;">
-                  <div style="width:28px; height:28px; border-radius:50%; background:#0284c7; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:12px;">👥</div>
-                  <span>👥 ${gData.name} (グループ)</span>
-                </div>
-                <span style="font-size: 11px; color: #0284c7;">グループを開く →</span>
-              `;
-              div.onclick = () => { openGroupChat(gId, gData.name); };
-              container.appendChild(div);
-            });
-
-            // 2. 個人DM一覧の表示
-            Object.values(users).forEach(u => {
-              if (!u.name || u.name === "undefined" || u.name === activeSender) return;
-              const isOnline = u.lastActive && (now - u.lastActive < 25000);
-              const roomId = getDmRoomId(activeSender, u.name);
-              const roomMsgs = allDms[roomId] || {};
-              const msgKeys = Object.keys(roomMsgs);
-              
-              let hasUnread = false;
-              if (msgKeys.length > 0) {
-                const lastMsg = roomMsgs[msgKeys[msgKeys.length - 1]];
-                const lastReadTime = Number(localStorage.getItem('LAST_READ_' + roomId) || 0);
-                if (lastMsg.name !== activeSender && lastMsg.rawTime > lastReadTime) {
-                  hasUnread = true; anyUnread = true;
-                }
+          Object.values(users).forEach(u => {
+            if (!u.name || u.name === "undefined" || u.name === activeSender) return;
+            const isOnline = u.lastActive && (now - u.lastActive < 25000);
+            const roomId = getDmRoomId(activeSender, u.name);
+            const roomMsgs = allDms[roomId] || {};
+            const msgKeys = Object.keys(roomMsgs);
+            
+            let hasUnread = false;
+            if (msgKeys.length > 0) {
+              const lastMsg = roomMsgs[msgKeys[msgKeys.length - 1]];
+              const lastReadTime = Number(localStorage.getItem('LAST_READ_' + roomId) || 0);
+              if (lastMsg.name !== activeSender && lastMsg.rawTime > lastReadTime) {
+                hasUnread = true; anyUnread = true;
               }
+            }
 
-              const div = document.createElement('div');
-              div.className = 'user-item';
-              div.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 10px;">
-                  <img src="${u.icon || DEFAULT_ICON_1}" style="width:28px; height:28px; border-radius:50%; object-fit:cover;">
-                  <span class="status-indicator ${isOnline ? 'online' : 'offline'}"></span>
-                  <span>${u.name}</span>
-                  ${hasUnread ? '<span class="unread-red-dot"></span>' : ''}
-                </div>
-                <span style="font-size: 11px; color: #0284c7;">チャットを開く →</span>
-              `;
-              div.onclick = () => { openDmChat(u.name); };
-              container.appendChild(div);
-            });
-
-            if (anyUnread) tabUnreadDot.classList.add('show'); else tabUnreadDot.classList.remove('show');
+            const div = document.createElement('div');
+            div.className = 'user-item';
+            div.innerHTML = `
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <img src="${u.icon || DEFAULT_ICON_1}" style="width:28px; height:28px; border-radius:50%; object-fit:cover;">
+                <span class="status-indicator ${isOnline ? 'online' : 'offline'}"></span>
+                <span>${u.name}</span>
+                ${hasUnread ? '<span class="unread-red-dot"></span>' : ''}
+              </div>
+              <span style="font-size: 11px; color: #0284c7;">チャットを開く →</span>
+            `;
+            div.onclick = () => { openDmChat(u.name); };
+            container.appendChild(div);
           });
+
+          if (anyUnread) tabUnreadDot.classList.add('show'); else tabUnreadDot.classList.remove('show');
         });
       });
     }
 
     function getDmRoomId(userA, userB) { return [userA, userB].sort().join('_'); }
-
-    let activeChatType = 'dm'; // 'dm' or 'group'
-    let currentGroupId = null;
 
     function openDmChat(targetName) {
       activeChatType = 'dm';
@@ -1376,13 +1672,26 @@
       initChatSync();
     }
 
-    function openGroupChat(groupId, groupName) {
+    function openGroupChat(groupId, groupName, memberCount) {
       activeChatType = 'group';
       currentGroupId = groupId;
       currentActiveDmUser = null;
-      document.getElementById('activeDmTitle').innerText = `👥 ${groupName}`;
+      
+      document.getElementById('activeDmTitle').innerText = `👥 ${groupName} (${memberCount || 1}人) ⚙️`;
       document.getElementById('dmUserListLayout').style.display = 'none';
       document.getElementById('dmChatRoomLayout').style.display = 'flex';
+
+      db.ref(`secret_groups/${groupId}`).on('value', (snap) => {
+        const gData = snap.val();
+        if (gData && gData.members) {
+          if (!gData.members.includes(impersonatedName || myName)) {
+            alert("このグループから除外されました。");
+            backToUserList();
+            return;
+          }
+          document.getElementById('activeDmTitle').innerText = `👥 ${gData.name} (${gData.members.length}人) ⚙️`;
+        }
+      });
 
       initChatSync();
     }
@@ -1424,7 +1733,7 @@
 
         if (isNewMessageAdded) {
           const latest = entries[entries.length - 1][1];
-          if (latest.name !== activeSender) {
+          if (latest.name !== activeSender && latest.name !== 'システム通知') {
             showBrowserNotification(`[チャット] ${latest.name}さん`, latest.type === 'image' ? '画像' : latest.text);
           }
         }
@@ -1450,11 +1759,27 @@
     }
 
     function sendDmMsg() {
+      if (!canSend) return;
       const input = document.getElementById('dmInput');
       const text = input.value.trim();
       if (!text && !replyingTo) return;
+
+      if (text.length > 350) {
+        alert("一度に送れる文字数は350文字までです。");
+        return;
+      }
+
+      canSend = false;
+      const sendBtn = document.getElementById('sendBtn');
+      if (sendBtn) sendBtn.disabled = true;
+
+      setTimeout(() => {
+        canSend = true;
+        if (sendBtn) sendBtn.disabled = false;
+      }, 3000);
+
       const activeSender = impersonatedName || myName;
-      const activeIconToUse = impersonatedName ? (impersonatedIcon || myIcon) : myIcon;
+      const activeIconToUse = impersonatedName ? impersonatedIcon : myIcon;
       const now = Date.now();
 
       const payload = {
@@ -1517,7 +1842,7 @@
       if (!pendingImageData) return;
       const now = Date.now();
       const activeSender = impersonatedName || myName;
-      const activeIconToUse = impersonatedName ? (impersonatedIcon || myIcon) : myIcon;
+      const activeIconToUse = impersonatedName ? impersonatedIcon : myIcon;
       const payload = {
         name: activeSender,
         icon: activeIconToUse,
@@ -1537,11 +1862,6 @@
         }
       }
       cancelImageSend();
-    }
-
-    function escapeHtml(str) {
-      if (!str) return '';
-      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
   </script>
 </body>
