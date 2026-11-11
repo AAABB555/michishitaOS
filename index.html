@@ -956,13 +956,14 @@
 
         if (data.type === 'offer' && !pc) {
           if (confirm(`${data.sender} から通話の着信があります。応答しますか？`)) {
-            await setupWebRTC(data.sender, false);
+            callRoomRef = data.sender;
+            await setupWebRTC(data.sender);
             await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
             
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
 
-            db.ref(`secret_calls/${data.sender}`).set({
+            db.ref(`secret_calls/${data.sender}`).update({
               type: 'answer',
               sender: id,
               answer: answer
@@ -971,7 +972,7 @@
             document.getElementById('callStatusText').innerText = `${data.sender} と通話中`;
             document.getElementById('hangUpBtn').style.display = 'block';
           } else {
-            db.ref(`secret_calls/${data.sender}`).set({ type: 'reject', sender: id });
+            db.ref(`secret_calls/${data.sender}`).update({ type: 'reject', sender: id });
             db.ref(`secret_calls/${id}`).remove();
           }
         } else if (data.type === 'answer' && pc) {
@@ -991,25 +992,33 @@
       });
     }
 
-    async function setupWebRTC(targetUser, isCaller) {
+    async function setupWebRTC(targetUser) {
       const configuration = {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' }
+          { urls: 'stun:stun1.l.google.com:19302' }
         ]
       };
 
       pc = new RTCPeerConnection(configuration);
-      callRoomRef = targetUser;
 
-      localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+      } catch (err) {
+        alert("マイクの使用が許可されていません。");
+        throw err;
+      }
+
+      const remoteStream = new MediaStream();
+      const audio = document.getElementById('remoteAudio');
+      audio.srcObject = remoteStream;
 
       pc.ontrack = (event) => {
-        const audio = document.getElementById('remoteAudio');
-        audio.srcObject = event.streams[0];
-        audio.play().catch(e => console.log(e));
+        event.streams[0].getTracks().forEach(track => {
+          remoteStream.addTrack(track);
+        });
+        audio.play().catch(e => console.log("Audio play blocked:", e));
       };
 
       const activeSender = impersonatedName || myName;
@@ -1031,8 +1040,9 @@
       if (targetId === activeSender) return alert("自分自身とは通話できません。");
 
       try {
+        callRoomRef = targetId;
         document.getElementById('callStatusText').innerText = `${targetId} へ発信中...`;
-        await setupWebRTC(targetId, true);
+        await setupWebRTC(targetId);
 
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
@@ -1043,40 +1053,35 @@
           offer: offer
         });
       } catch (err) {
-        alert("マイクの取得または発信に失敗しました: " + err.message);
+        alert("発信に失敗しました。");
         endCall(true);
       }
     }
 
-function endCall(notify = true) {
+    function endCall(notify = true) {
       const activeSender = impersonatedName || myName;
 
-      // 相手に通報を通知
       if (notify && callRoomRef) {
-        db.ref(`secret_calls/${callRoomRef}`).set({ type: 'hangup', sender: activeSender });
+        db.ref(`secret_calls/${callRoomRef}`).update({ type: 'hangup', sender: activeSender });
       }
 
-      // メディアストリームとPeerConnectionの解放
       localStream?.getTracks().forEach(track => track.stop());
       localStream = null;
 
       pc?.close();
       pc = null;
 
-      // UIの初期化
-      document.getElementById('remoteAudio').srcObject = null;
+      const audio = document.getElementById('remoteAudio');
+      if (audio) audio.srcObject = null;
+
       document.getElementById('callStatusText').innerText = "通話待機中...";
       document.getElementById('hangUpBtn').style.display = 'none';
 
-      // Firebase上の通話データをクリーンアップ
       db.ref(`secret_calls/${activeSender}`).remove();
       if (callRoomRef) {
         db.ref(`secret_calls/${callRoomRef}`).remove();
         callRoomRef = null;
       }
-    }
-
-      db.ref(`secret_calls/${activeSender}`).remove();
     }
 
     function initCallUserListSync() {
