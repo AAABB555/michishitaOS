@@ -38,7 +38,7 @@
       width: 100%;
       max-width: 440px;
       height: 94vh;
-      max-height: 800px;
+      max-height: 820px;
       background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(14px);
       border: 2px solid rgba(255, 255, 255, 0.9);
@@ -95,7 +95,7 @@
       align-items: center;
       justify-content: center;
       padding: 16px;
-      gap: 14px;
+      gap: 12px;
       overflow-y: auto;
     }
 
@@ -135,24 +135,28 @@
       width: 100%;
       box-shadow: 0 2px 6px rgba(2, 132, 199, 0.3);
     }
+    .btn-pass {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+      box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3) !important;
+      display: none;
+    }
 
     .status-bar {
-      font-size: 13.5px;
+      font-size: 13px;
       font-weight: 900;
-      padding: 10px 14px;
+      padding: 8px 12px;
       background: #f0f9ff;
       color: #0284c7;
       border: 1.5px solid #bae6fd;
-      border-radius: 16px;
+      border-radius: 14px;
       text-align: center;
       width: 100%;
       max-width: 380px;
     }
 
-    /* 1:1の正方形を完全に維持するコンテナ */
     .board-wrapper {
       width: 100%;
-      max-width: 380px;
+      max-width: 360px;
       aspect-ratio: 1 / 1;
       display: flex;
       align-items: center;
@@ -224,8 +228,9 @@
       </div>
 
       <!-- ゲーム中画面 -->
-      <div id="gameArea" style="display: none; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 12px;">
+      <div id="gameArea" style="display: none; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 10px;">
         <div class="status-bar" id="status">対戦相手を待っています...</div>
+        <button class="btn-clean btn-pass" id="passBtn" onclick="passTurn()">⚠️ 置ける場所がないためパスする</button>
         <div class="board-wrapper">
           <div class="board" id="board"></div>
         </div>
@@ -235,9 +240,8 @@
 
   <script>
     // ▼▼▼ 【ここに画像のリンク（URL）をそれぞれ設定してください】 ▼▼▼
-    // GitHubに画像をアップロードしたあとのリンクや、ネット上の画像URLをここに貼るだけで反映されます
-    const BLACK_IMAGE_URL = "https://example.com/black_michishita.jpg"; // 黒の画像
-    const WHITE_IMAGE_URL = "https://example.com/white_michishita.jpg"; // 白の画像
+    const BLACK_IMAGE_URL = ""; // 黒の画像URL
+    const WHITE_IMAGE_URL = ""; // 白の画像URL
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     // ▼▼▼ あなたのFirebase設定 ▼▼▼
@@ -257,7 +261,7 @@
     const db = firebase.database();
 
     let currentRoom = null;
-    let myId = 'user_' + Math.random().toString(36.substring(2, 9));
+    let myId = 'user_' + Math.random().toString(36).substring(2, 9);
     let myColor = null;
     let gameState = null;
 
@@ -293,10 +297,10 @@
       document.getElementById("gameArea").style.display = "flex";
 
       const roomRef = db.ref('rooms/' + currentRoom);
-      roomRef.transaction((room) => {
+      roomRef.once('value', (snapshot) => {
+        let room = snapshot.val();
         if (!room) {
-          // 部屋がなければ新規作成（自分がプレイヤー1）
-          return {
+          room = {
             board: createInitialBoard(),
             turn: 1,
             p1: myId,
@@ -304,34 +308,34 @@
             blackPlayer: null,
             whitePlayer: null
           };
+          roomRef.set(room);
         } else {
-          // 部屋がある場合
-          if (!room.p1) room.p1 = myId;
-          else if (!room.p2 && room.p1 !== myId) room.p2 = myId;
-          return room;
+          if (!room.p1) {
+            room.p1 = myId;
+          } else if (!room.p2 && room.p1 !== myId) {
+            room.p2 = myId;
+          }
+          roomRef.set(room);
         }
-      }, (error, committed, snapshot) => {
-        if (committed) {
-          const roomData = snapshot.val();
-          assignRolesAndListen(roomRef, roomData);
-        }
+        setupGameListener(roomRef);
       });
     };
 
-    function assignRolesAndListen(roomRef, data) {
-      // 2人揃った時点でまだ色が割り振られていなければ、ランダムに決定する
-      if (data.p1 && data.p2 && !data.blackPlayer) {
-        const isP1Black = Math.random() < 0.5;
-        roomRef.update({
-          blackPlayer: isP1Black ? data.p1 : data.p2,
-          whitePlayer: isP1Black ? data.p2 : data.p1
-        });
-      }
-
+    function setupGameListener(roomRef) {
       roomRef.on('value', (snapshot) => {
         const val = snapshot.val();
         if (!val) return;
         gameState = val;
+
+        // 2人揃っていてまだ色が未定の場合、ランダムで決定
+        if (val.p1 && val.p2 && !val.blackPlayer) {
+          const isP1Black = Math.random() < 0.5;
+          roomRef.update({
+            blackPlayer: isP1Black ? val.p1 : val.p2,
+            whitePlayer: isP1Black ? val.p2 : val.p1
+          });
+          return;
+        }
 
         if (val.blackPlayer === myId) myColor = 1;
         else if (val.whitePlayer === myId) myColor = 2;
@@ -371,6 +375,12 @@
       return false;
     }
 
+    window.passTurn = function() {
+      if (!gameState || gameState.turn !== myColor) return;
+      const nextTurn = myColor === 1 ? 2 : 1;
+      db.ref('rooms/' + currentRoom).update({ turn: nextTurn });
+    };
+
     function handleCellClick(r, c) {
       if (!gameState || !gameState.blackPlayer || !gameState.whitePlayer) return;
       if (myColor === 0 || gameState.turn !== myColor) return;
@@ -387,9 +397,9 @@
       let nextTurn = myColor === 1 ? 2 : 1;
       if (!hasValidMove(newBoard, nextTurn)) {
         if (hasValidMove(newBoard, myColor)) {
-          nextTurn = myColor;
+          nextTurn = myColor; // 相手も置けないならもう一度自分のターン
         } else {
-          nextTurn = 0;
+          nextTurn = 0; // 両者置けなければゲーム終了
         }
       }
 
@@ -426,7 +436,7 @@
             const disc = document.createElement("div");
             disc.className = "disc " + (val === 1 ? "black" : "white");
             const imgUrl = val === 1 ? BLACK_IMAGE_URL : WHITE_IMAGE_URL;
-            if (imgUrl && !imgUrl.includes("example.com")) {
+            if (imgUrl) {
               disc.style.backgroundImage = `url(${imgUrl})`;
             }
             cell.appendChild(disc);
@@ -436,8 +446,11 @@
       }
 
       const statusEl = document.getElementById("status");
+      const passBtn = document.getElementById("passBtn");
+
       if (!gameState.blackPlayer) {
         statusEl.textContent = "対戦相手を待っています... (別タブや別端末で同じ合言葉を入力してね)";
+        passBtn.style.display = "none";
       } else {
         const myRoleText = myColor === 1 ? "黒" : (myColor === 2 ? "白" : "観戦中");
         if (gameState.turn === 0) {
@@ -445,9 +458,17 @@
           if (blackCount > whiteCount) winner = "黒の勝ち！";
           if (whiteCount > blackCount) winner = "白の勝ち！";
           statusEl.textContent = `試合終了 黒:${blackCount} - 白:${whiteCount} → ${winner}`;
+          passBtn.style.display = "none";
         } else {
           const turnText = gameState.turn === myColor ? "【あなたの番】" : "相手の番...";
           statusEl.textContent = `あなた:${myRoleText} | 黒:${blackCount} 白:${whiteCount} | ${turnText}`;
+
+          // 自分の番で、かつ置ける場所が1つもない場合にのみパスボタンを表示
+          if (gameState.turn === myColor && !hasValidMove(gameState.board, myColor)) {
+            passBtn.style.display = "block";
+          } else {
+            passBtn.style.display = "none";
+          }
         }
       }
     }
