@@ -53,7 +53,7 @@
     .app-container.mode-mobile {
       max-width: 440px;
       height: 94vh;
-      max-height: 820px;
+      max-height: 840px;
     }
     .app-container.mode-pc {
       max-width: 760px;
@@ -105,28 +105,28 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 16px;
-      gap: 12px;
+      padding: 12px;
+      gap: 10px;
       overflow-y: auto;
     }
 
     .controls-card {
       background: #f8fafc;
       border: 1.5px solid #e2e8f0;
-      padding: 14px;
+      padding: 12px;
       border-radius: 14px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
       align-items: center;
       width: 100%;
-      max-width: 360px;
+      max-width: 380px;
     }
     input[type="text"] {
-      padding: 8px 12px;
+      padding: 6px 10px;
       border-radius: 10px;
       border: 2px solid #bae6fd;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 800;
       outline: none;
       background: #fff;
@@ -138,10 +138,10 @@
       background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
       color: #ffffff;
       border: none;
-      padding: 10px;
+      padding: 8px;
       border-radius: 10px;
       font-weight: 900;
-      font-size: 13px;
+      font-size: 12px;
       cursor: pointer;
       width: 100%;
       box-shadow: 0 2px 6px rgba(2, 132, 199, 0.3);
@@ -152,8 +152,38 @@
       display: none;
     }
 
+    /* 画像選択エリア */
+    .image-setup-row {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+      max-width: 380px;
+      justify-content: center;
+    }
+    .image-box {
+      background: #f8fafc;
+      border: 1.5px solid #e2e8f0;
+      padding: 6px;
+      border-radius: 12px;
+      text-align: center;
+      flex: 1;
+      font-size: 10.5px;
+      font-weight: 800;
+      color: #475569;
+    }
+    .preview-img {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #0284c7;
+      display: block;
+      margin: 3px auto;
+      background: #e2e8f0;
+    }
+
     .status-bar {
-      font-size: 13px;
+      font-size: 12.5px;
       font-weight: 900;
       padding: 8px 12px;
       background: #f0f9ff;
@@ -167,7 +197,7 @@
 
     .board-wrapper {
       width: 100%;
-      max-width: 360px;
+      max-width: 340px;
       aspect-ratio: 1 / 1;
       display: flex;
       align-items: center;
@@ -195,12 +225,13 @@
     }
     .cell.valid::after {
       content: "";
-      width: 12px;
-      height: 12px;
+      width: 10px;
+      height: 10px;
       background-color: rgba(255, 255, 255, 0.5);
       border-radius: 50%;
     }
 
+    /* ── 駒全体が丸ごと回転するアニメーション構造 ── */
     .disc {
       width: 84%;
       height: 84%;
@@ -219,7 +250,7 @@
       background-color: #ffffff;
       border: 2.5px solid #cbd5e1;
     }
-    /* 挟まれてひっくり返る時専用のアニメーションクラス */
+    /* 挟まれて裏返る時は「駒全体」が丸ごと回転する */
     .disc.flip {
       transform: rotateY(180deg) scale(1.15);
     }
@@ -289,13 +320,28 @@
     <div class="game-content">
       <!-- 参加前画面 -->
       <div class="controls-card" id="joinCard">
-        <div style="font-size: 13px; font-weight: 900; color: #334155;">合言葉を入力して参加</div>
+        <div style="font-size: 12px; font-weight: 900; color: #334155;">合言葉を入力して参加</div>
         <input type="text" id="roomInput" placeholder="例: michishita123" value="michishita">
+        
+        <!-- 黒と白の画像設定欄 -->
+        <div class="image-setup-row">
+          <div class="image-box">
+            <div>黒の画像</div>
+            <img id="blackPreview" class="preview-img" src="">
+            <input type="file" accept="image/*" onchange="uploadImage(event, 'black')" style="font-size:9px; width:100%; margin-top:2px;">
+          </div>
+          <div class="image-box">
+            <div>白の画像</div>
+            <img id="whitePreview" class="preview-img" src="">
+            <input type="file" accept="image/*" onchange="uploadImage(event, 'white')" style="font-size:9px; width:100%; margin-top:2px;">
+          </div>
+        </div>
+
         <button class="btn-clean" onclick="joinRoom()">部屋に参加する</button>
       </div>
 
       <!-- ゲーム中画面 -->
-      <div id="gameArea" style="display: none; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 10px;">
+      <div id="gameArea" style="display: none; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px;">
         <div class="status-bar" id="status">対戦相手を待っています...</div>
         <button class="btn-clean btn-pass" id="passBtn" onclick="passTurn()">⚠️ 置ける場所がないためパスする</button>
         <div class="board-wrapper">
@@ -306,11 +352,6 @@
   </div>
 
   <script>
-    // ▼▼▼ 【ここに画像のリンク（URL）をそれぞれ設定してください】 ▼▼▼
-    const BLACK_IMAGE_URL = ""; // 無題707_20261112173550.png
-    const WHITE_IMAGE_URL = ""; // 無題707_20261112173510.png
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
-
     // ▼▼▼ あなたのFirebase設定 ▼▼▼
     const firebaseConfig = {
       apiKey: "AIzaSyC3f_CL5ZGm0wVpWsgU1ypN8YWOywazgco",
@@ -334,7 +375,7 @@
     let isPcMode = false;
     let roomRef = null;
     let hasShownResult = false;
-    let previousBoard = null; // 前回の盤面状態を保持して変更があった場所を特定する
+    let previousBoard = null;
 
     const DIRS = [
       [-1,-1], [-1,0], [-1,1],
@@ -365,6 +406,45 @@
       }
     }
 
+    // 画像ファイルをアップロードして縮小・保存する関数
+    window.uploadImage = function(event, color) {
+      const roomName = document.getElementById("roomInput").value.trim() || "michishita";
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          const size = 96;
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, size, size);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+          // プレビュー表示
+          if (color === 'black') {
+            document.getElementById("blackPreview").src = dataUrl;
+            localStorage.setItem('michishita_black_img', dataUrl);
+          } else {
+            document.getElementById("whitePreview").src = dataUrl;
+            localStorage.setItem('michishita_white_img', dataUrl);
+          }
+
+          // 参加中ならFirebaseにも反映
+          if (roomRef) {
+            let updateData = {};
+            updateData[color === 'black' ? 'blackImg' : 'whiteImg'] = dataUrl;
+            roomRef.update(updateData);
+          }
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    };
+
     function createInitialBoard() {
       const b = Array(8).fill(null).map(() => Array(8).fill(0));
       b[3][3] = 2;
@@ -385,6 +465,9 @@
       document.getElementById("gameArea").style.display = "flex";
       document.getElementById("reveal-modal").style.display = "none";
 
+      const blackImg = localStorage.getItem('michishita_black_img') || "";
+      const whiteImg = localStorage.getItem('michishita_white_img') || "";
+
       roomRef = db.ref('rooms/' + currentRoom);
       roomRef.once('value', (snapshot) => {
         let room = snapshot.val();
@@ -395,7 +478,9 @@
             p1: myId,
             p2: null,
             blackPlayer: null,
-            whitePlayer: null
+            whitePlayer: null,
+            blackImg: blackImg,
+            whiteImg: whiteImg
           };
           roomRef.set(room);
         } else {
@@ -404,6 +489,8 @@
           } else if (!room.p2 && room.p1 !== myId) {
             room.p2 = myId;
           }
+          if (blackImg && !room.blackImg) room.blackImg = blackImg;
+          if (whiteImg && !room.whiteImg) room.whiteImg = whiteImg;
           roomRef.set(room);
         }
         setupGameListener(roomRef);
@@ -415,6 +502,9 @@
         const val = snapshot.val();
         if (!val) return;
         gameState = val;
+
+        if (val.blackImg) document.getElementById("blackPreview").src = val.blackImg;
+        if (val.whiteImg) document.getElementById("whitePreview").src = val.whiteImg;
 
         if (val.p1 && val.p2 && !val.blackPlayer) {
           const isP1Black = Math.random() < 0.5;
@@ -545,12 +635,13 @@
           if (val !== 0) {
             const disc = document.createElement("div");
             disc.className = "disc " + (val === 1 ? "black" : "white");
-            const imgUrl = val === 1 ? BLACK_IMAGE_URL : WHITE_IMAGE_URL;
+            
+            const imgUrl = val === 1 ? gameState.blackImg : gameState.whiteImg;
             if (imgUrl) {
               disc.style.backgroundImage = `url(${imgUrl})`;
             }
 
-            // ★ ここで「前回の盤面から新しく色が変わった（裏返った）コマ」だけを判定してアニメーションさせる
+            // 挟まれて裏返った時、コマ全体（disc）が丸ごと回転する
             if (previousBoard && previousBoard[r][c] !== 0 && previousBoard[r][c] !== val) {
               disc.classList.add("flip");
               setTimeout(() => disc.classList.remove("flip"), 400);
@@ -562,7 +653,6 @@
         }
       }
 
-      // 現在の盤面を「次回の比較用」として保存
       previousBoard = currentBoard.map(row => [...row]);
 
       const statusEl = document.getElementById("status");
