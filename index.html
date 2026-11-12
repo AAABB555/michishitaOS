@@ -53,7 +53,7 @@
     .app-container.mode-mobile {
       max-width: 440px;
       height: 94vh;
-      max-height: 820px;
+      max-height: 840px;
     }
     .app-container.mode-pc {
       max-width: 760px;
@@ -106,7 +106,7 @@
       align-items: center;
       justify-content: center;
       padding: 16px;
-      gap: 12px;
+      gap: 10px;
       overflow-y: auto;
     }
 
@@ -146,10 +146,16 @@
       width: 100%;
       box-shadow: 0 2px 6px rgba(2, 132, 199, 0.3);
     }
-    .btn-pass {
-      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
-      box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3) !important;
-      display: none;
+    .btn-danger {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+      box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
+    }
+
+    .action-row {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+      max-width: 360px;
     }
 
     .status-bar {
@@ -162,12 +168,12 @@
       border-radius: 14px;
       text-align: center;
       width: 100%;
-      max-width: 380px;
+      max-width: 360px;
     }
 
     .board-wrapper {
       width: 100%;
-      max-width: 360px;
+      max-width: 340px;
       aspect-ratio: 1 / 1;
       display: flex;
       align-items: center;
@@ -201,15 +207,13 @@
       border-radius: 50%;
     }
 
-    /* 駒全体が回転するアニメーション */
+    /* ── オセロのコマ（立体・反転アニメーション対応） ── */
     .disc {
       width: 84%;
       height: 84%;
       border-radius: 50%;
-      background-size: cover;
-      background-position: center;
       box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-      transition: transform 0.4s ease-in-out;
+      transition: transform 0.4s ease-in-out, background-color 0.2s, border-color 0.2s;
       transform-style: preserve-3d;
     }
     .disc.black {
@@ -269,7 +273,7 @@
   <!-- 結果発表モーダル -->
   <div id="reveal-modal" class="custom-modal">
     <div class="modal-card">
-      <div class="modal-title">🏆 試合結果発表</div>
+      <div class="modal-title" id="modalTitle">🏆 試合結果発表</div>
       <div class="modal-desc" id="resultDesc">スコア計算中...</div>
       <button class="btn-clean" onclick="returnToJoin()">もう一度対戦する</button>
     </div>
@@ -297,7 +301,12 @@
       <!-- ゲーム中画面 -->
       <div id="gameArea" style="display: none; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 10px;">
         <div class="status-bar" id="status">対戦相手を待っています...</div>
-        <button class="btn-clean btn-pass" id="passBtn" onclick="passTurn()">⚠️ 置ける場所がないためパスする</button>
+        
+        <!-- 操作ボタン（リタイア） -->
+        <div class="action-row">
+          <button class="btn-clean btn-danger" onclick="retireGame()">🏳️ リタイアする</button>
+        </div>
+
         <div class="board-wrapper">
           <div class="board" id="board"></div>
         </div>
@@ -306,11 +315,6 @@
   </div>
 
   <script>
-    // ▼▼▼ 【教えてもらった画像ファイル名を設定済み】 ▼▼▼
-    const BLACK_IMAGE_URL = "無題707_20261112173550.png"; // 黒の画像
-    const WHITE_IMAGE_URL = "無題707_20261112173510.png"; // 白の画像
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
-
     // ▼▼▼ あなたのFirebase設定 ▼▼▼
     const firebaseConfig = {
       apiKey: "AIzaSyC3f_CL5ZGm0wVpWsgU1ypN8YWOywazgco",
@@ -407,7 +411,6 @@
         }
       });
 
-      // ページを離れる時（閉じる時やリロード時）に自分が部屋にいたらIDをクリアする
       window.addEventListener('beforeunload', () => {
         leaveRoomCleanUp();
       });
@@ -419,7 +422,6 @@
         if (!room) return null;
         if (room.p1 === myId) room.p1 = null;
         if (room.p2 === myId) room.p2 = null;
-        // 両方いなくなったら部屋データを完全に削除
         if (!room.p1 && !room.p2) return null;
         return room;
       });
@@ -428,10 +430,7 @@
     function setupGameListener(roomRef) {
       roomRef.on('value', (snapshot) => {
         const val = snapshot.val();
-        if (!val) {
-          // 部屋が削除された場合
-          return;
-        }
+        if (!val) return;
         gameState = val;
 
         if (val.p1 && val.p2 && !val.blackPlayer) {
@@ -481,10 +480,9 @@
       return false;
     }
 
-    window.passTurn = function() {
-      if (!gameState || gameState.turn !== myColor) return;
-      const nextTurn = myColor === 1 ? 2 : 1;
-      roomRef.update({ turn: nextTurn });
+    window.retireGame = function() {
+      if (!confirm("本当にリタイアしますか？")) return;
+      roomRef.update({ turn: 0, retiredBy: myColor });
     };
 
     window.returnToJoin = function() {
@@ -516,7 +514,7 @@
         if (hasValidMove(newBoard, myColor)) {
           nextTurn = myColor;
         } else {
-          nextTurn = 0;
+          nextTurn = 0; // 終了
         }
       }
 
@@ -529,9 +527,10 @@
     const confettiCanvas = document.getElementById('confetti-canvas');
     const myConfetti = confetti.create(confettiCanvas, { resize: true, useWorker: true });
 
-    function showResultModal(htmlText) {
+    function showResultModal(titleText, htmlText) {
       if (hasShownResult) return;
       hasShownResult = true;
+      document.getElementById('modalTitle').textContent = titleText;
       document.getElementById('resultDesc').innerHTML = htmlText;
       document.getElementById('reveal-modal').style.display = 'flex';
       myConfetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
@@ -564,12 +563,8 @@
           if (val !== 0) {
             const disc = document.createElement("div");
             disc.className = "disc " + (val === 1 ? "black" : "white");
-            
-            const imgUrl = val === 1 ? BLACK_IMAGE_URL : WHITE_IMAGE_URL;
-            if (imgUrl) {
-              disc.style.backgroundImage = `url(${imgUrl})`;
-            }
 
+            // ★ 前回の盤面と比べて色が変わっていたらflipクラスを付与して白黒反転アニメーションをさせる
             if (previousBoard && previousBoard[r][c] !== 0 && previousBoard[r][c] !== val) {
               disc.classList.add("flip");
               setTimeout(() => disc.classList.remove("flip"), 400);
@@ -584,17 +579,22 @@
       previousBoard = currentBoard.map(row => [...row]);
 
       const statusEl = document.getElementById("status");
-      const passBtn = document.getElementById("passBtn");
 
       if (!gameState.blackPlayer) {
         statusEl.textContent = "対戦相手を待っています... (別タブや別端末で同じ合言葉を入力してね)";
-        passBtn.style.display = "none";
       } else {
         const myRoleText = myColor === 1 ? "黒" : (myColor === 2 ? "白" : "観戦中");
+        
+        // リタイアされた場合
+        if (gameState.retiredBy) {
+          statusEl.textContent = "試合終了（リタイア）";
+          let retireMsg = (gameState.retiredBy === myColor) ? "🏳️ あなたがリタイアしました…" : "🏆 相手がリタイアしました！あなたの勝ちです！";
+          showResultModal("🏳️ リタイア決着", retireMsg);
+          return;
+        }
+
         if (gameState.turn === 0) {
           statusEl.textContent = `試合終了！ 黒:${blackCount} - 白:${whiteCount}`;
-          passBtn.style.display = "none";
-
           let resultMsg = `黒ゴマ: <b>${blackCount} 個</b><br>白ゴマ: <b>${whiteCount} 個</b><br><br>`;
           if (blackCount > whiteCount) {
             resultMsg += (myColor === 1) ? "⚔️ <b>対戦勝利！（あなたの勝ち）</b>" : "💔 <b>対戦敗北…（相手の勝ち）</b>";
@@ -603,16 +603,20 @@
           } else {
             resultMsg += "🤝 <b>引き分け！</b>";
           }
-
-          showResultModal(resultMsg);
+          showResultModal("🏆 試合結果発表", resultMsg);
         } else {
-          const turnText = gameState.turn === myColor ? "【あなたの番】" : "相手の番...";
-          statusEl.textContent = `あなた:${myRoleText} | 黒:${blackCount} 白:${whiteCount} | ${turnText}`;
-
+          // 手詰まり（置ける場所がない）の自動パス処理
           if (gameState.turn === myColor && !hasValidMove(currentBoard, myColor)) {
-            passBtn.style.display = "block";
+            statusEl.textContent = "⚠️ 置ける場所がないため【パス】します...";
+            setTimeout(() => {
+              if (gameState && gameState.turn === myColor) {
+                const nextTurn = myColor === 1 ? 2 : 1;
+                roomRef.update({ turn: nextTurn });
+              }
+            }, 1200); // 1.2秒後に自動でパスして相手の番へ
           } else {
-            passBtn.style.display = "none";
+            const turnText = gameState.turn === myColor ? "【あなたの番】" : "相手の番...";
+            statusEl.textContent = `あなた:${myRoleText} | 黒:${blackCount} 白:${whiteCount} | ${turnText}`;
           }
         }
       }
