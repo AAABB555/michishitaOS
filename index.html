@@ -8,6 +8,8 @@
   <!-- Firebase SDK (Compat v9) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  <!-- 紙吹雪ライブラリ (canvas-confetti) -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
   <style>
     * {
       box-sizing: border-box;
@@ -48,7 +50,6 @@
       transition: all 0.3s ease;
     }
 
-    /* 画面比率切り替えモード */
     .app-container.mode-mobile {
       max-width: 440px;
       height: 94vh;
@@ -164,7 +165,6 @@
       max-width: 380px;
     }
 
-    /* 1:1の正方形を完全に維持するコンテナ */
     .board-wrapper {
       width: 100%;
       max-width: 360px;
@@ -201,7 +201,6 @@
       border-radius: 50%;
     }
 
-    /* コマの立体反転アニメーション */
     .disc {
       width: 84%;
       height: 84%;
@@ -220,13 +219,61 @@
       background-color: #ffffff;
       border: 2.5px solid #cbd5e1;
     }
-    /* プレイス時・反転時に回転させるクラス */
+    /* 挟まれてひっくり返る時専用のアニメーションクラス */
     .disc.flip {
-      transform: rotateY(180deg) scale(1.1);
+      transform: rotateY(180deg) scale(1.15);
+    }
+
+    /* 結果発表モーダル */
+    .custom-modal {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(6px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-card {
+      background: #ffffff;
+      width: 100%;
+      max-width: 340px;
+      border-radius: 20px;
+      padding: 24px;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+      border: 2px solid #e0f2fe;
+    }
+    .modal-title {
+      font-size: 20px;
+      font-weight: 900;
+      color: #0284c7;
+      margin-bottom: 10px;
+    }
+    .modal-desc {
+      font-size: 14px;
+      color: #334155;
+      margin-bottom: 20px;
+      line-height: 1.6;
+      font-weight: 700;
     }
   </style>
 </head>
 <body class="mode-mobile" id="bodyRoot">
+
+  <!-- 紙吹雪用canvas -->
+  <canvas id="confetti-canvas" style="position:fixed; inset:0; pointer-events:none; z-index:9999;"></canvas>
+
+  <!-- 結果発表モーダル -->
+  <div id="reveal-modal" class="custom-modal">
+    <div class="modal-card">
+      <div class="modal-title">🏆 試合結果発表</div>
+      <div class="modal-desc" id="resultDesc">スコア計算中...</div>
+      <button class="btn-clean" onclick="returnToJoin()">もう一度対戦する (部屋リセット)</button>
+    </div>
+  </div>
 
   <div class="app-container mode-mobile" id="appContainer">
     <header class="app-header">
@@ -285,6 +332,9 @@
     let myColor = null;
     let gameState = null;
     let isPcMode = false;
+    let roomRef = null;
+    let hasShownResult = false;
+    let previousBoard = null; // 前回の盤面状態を保持して変更があった場所を特定する
 
     const DIRS = [
       [-1,-1], [-1,0], [-1,1],
@@ -328,14 +378,17 @@
       const roomName = document.getElementById("roomInput").value.trim();
       if (!roomName) return alert("合言葉を入力してください");
       currentRoom = roomName;
+      hasShownResult = false;
+      previousBoard = null;
 
       document.getElementById("joinCard").style.display = "none";
       document.getElementById("gameArea").style.display = "flex";
+      document.getElementById("reveal-modal").style.display = "none";
 
-      const roomRef = db.ref('rooms/' + currentRoom);
+      roomRef = db.ref('rooms/' + currentRoom);
       roomRef.once('value', (snapshot) => {
         let room = snapshot.val();
-        if (!room) {
+        if (!room || room.turn === 0) {
           room = {
             board: createInitialBoard(),
             turn: 1,
@@ -413,7 +466,17 @@
     window.passTurn = function() {
       if (!gameState || gameState.turn !== myColor) return;
       const nextTurn = myColor === 1 ? 2 : 1;
-      db.ref('rooms/' + currentRoom).update({ turn: nextTurn });
+      roomRef.update({ turn: nextTurn });
+    };
+
+    window.returnToJoin = function() {
+      if (roomRef) {
+        roomRef.remove();
+        roomRef.off();
+      }
+      document.getElementById("reveal-modal").style.display = "none";
+      document.getElementById("gameArea").style.display = "none";
+      document.getElementById("joinCard").style.display = "flex";
     };
 
     function handleCellClick(r, c) {
@@ -438,10 +501,21 @@
         }
       }
 
-      db.ref('rooms/' + currentRoom).update({
+      roomRef.update({
         board: newBoard,
         turn: nextTurn
       });
+    }
+
+    const confettiCanvas = document.getElementById('confetti-canvas');
+    const myConfetti = confetti.create(confettiCanvas, { resize: true, useWorker: true });
+
+    function showResultModal(htmlText) {
+      if (hasShownResult) return;
+      hasShownResult = true;
+      document.getElementById('resultDesc').innerHTML = htmlText;
+      document.getElementById('reveal-modal').style.display = 'flex';
+      myConfetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
     }
 
     function render() {
@@ -451,17 +525,18 @@
 
       let blackCount = 0;
       let whiteCount = 0;
+      const currentBoard = gameState.board;
 
       for (let r = 0; r < 8; r++) {
         for (let c = 0; c < 8; c++) {
-          const val = gameState.board[r][c];
+          const val = currentBoard[r][c];
           if (val === 1) blackCount++;
           if (val === 2) whiteCount++;
 
           const cell = document.createElement("div");
           cell.className = "cell";
 
-          if (val === 0 && gameState.turn === myColor && getFlips(gameState.board, r, c, myColor).length > 0) {
+          if (val === 0 && gameState.turn === myColor && getFlips(currentBoard, r, c, myColor).length > 0) {
             cell.classList.add("valid");
           }
 
@@ -475,17 +550,20 @@
               disc.style.backgroundImage = `url(${imgUrl})`;
             }
 
-            // 駒が置かれた時やひっくり返った時にアニメーションを適用
-            setTimeout(() => {
+            // ★ ここで「前回の盤面から新しく色が変わった（裏返った）コマ」だけを判定してアニメーションさせる
+            if (previousBoard && previousBoard[r][c] !== 0 && previousBoard[r][c] !== val) {
               disc.classList.add("flip");
               setTimeout(() => disc.classList.remove("flip"), 400);
-            }, 50);
+            }
 
             cell.appendChild(disc);
           }
           boardEl.appendChild(cell);
         }
       }
+
+      // 現在の盤面を「次回の比較用」として保存
+      previousBoard = currentBoard.map(row => [...row]);
 
       const statusEl = document.getElementById("status");
       const passBtn = document.getElementById("passBtn");
@@ -496,16 +574,24 @@
       } else {
         const myRoleText = myColor === 1 ? "黒" : (myColor === 2 ? "白" : "観戦中");
         if (gameState.turn === 0) {
-          let winner = "引き分け！";
-          if (blackCount > whiteCount) winner = "黒の勝ち！";
-          if (whiteCount > blackCount) winner = "白の勝ち！";
-          statusEl.textContent = `試合終了 黒:${blackCount} - 白:${whiteCount} → ${winner}`;
+          statusEl.textContent = `試合終了！ 黒:${blackCount} - 白:${whiteCount}`;
           passBtn.style.display = "none";
+
+          let resultMsg = `黒ゴマ: <b>${blackCount} 個</b><br>白ゴマ: <b>${whiteCount} 個</b><br><br>`;
+          if (blackCount > whiteCount) {
+            resultMsg += (myColor === 1) ? "⚔️ <b>対戦勝利！（あなたの勝ち）</b>" : "💔 <b>対戦敗北…（相手の勝ち）</b>";
+          } else if (whiteCount > blackCount) {
+            resultMsg += (myColor === 2) ? "⚔️ <b>対戦勝利！（あなたの勝ち）</b>" : "💔 <b>対戦敗北…（相手の勝ち）</b>";
+          } else {
+            resultMsg += "🤝 <b>引き分け！</b>";
+          }
+
+          showResultModal(resultMsg);
         } else {
           const turnText = gameState.turn === myColor ? "【あなたの番】" : "相手の番...";
           statusEl.textContent = `あなた:${myRoleText} | 黒:${blackCount} 白:${whiteCount} | ${turnText}`;
 
-          if (gameState.turn === myColor && !hasValidMove(gameState.board, myColor)) {
+          if (gameState.turn === myColor && !hasValidMove(currentBoard, myColor)) {
             passBtn.style.display = "block";
           } else {
             passBtn.style.display = "none";
